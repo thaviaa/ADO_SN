@@ -394,6 +394,35 @@ ADOReconciliationUtil.prototype = {
         return result;
     },
 
+    /**
+     * Delete the SN story for ONE ADO work item id (+ its external-id link row).
+     * For the real-time path: when ADO fires `workitem.deleted`, the subflow
+     * calls this with the deleted ADO id and the SN record is removed.
+     * Returns true if a story was deleted.
+     *
+     *   new ADOReconciliationUtil().deleteByAdoId(251195);
+     */
+    deleteByAdoId: function(adoId) {
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.addQuery(this.EXT_ID_FIELD, String(adoId));
+        e.query();
+        if (!e.next()) {
+            gs.info(this.LOG_PREFIX + 'deleteByAdoId: no SN story linked to ADO ' + adoId);
+            return false;
+        }
+        var num = '';
+        var story = new GlideRecord('rm_story');
+        if (story.get(e.getValue('reference_value'))) {
+            num = story.getValue('number');
+            story.setWorkflow(false); // no echo back to ADO
+            story.deleteRecord();
+        }
+        e.deleteRecord(); // remove the dangling link row
+        gs.info(this.LOG_PREFIX + 'deleteByAdoId: deleted ADO ' + adoId + ' (SN ' + num + ')');
+        return true;
+    },
+
     /** Read the ADO project Recycle Bin; returns { deletedWorkItemId: true }. */
     _getRecycleBinIds: function(project) {
         var token = this.util._getAccessToken(true);

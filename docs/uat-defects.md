@@ -103,9 +103,10 @@ orphans and inflate counts (observed: SN 68 vs ADO 65 = 3 orphans; e.g. ADO
 
 - **Cleanup (built):** `handleDeleted(project, areaPath, 'report'|'delete', dryRun)`
   reads the ADO Recycle Bin and finds/removes SN stories whose ADO id is deleted.
-- **Real-time (TODO):** subscribe the integration to the ADO `workitem.deleted`
-  service hook and route it (decision table -> subflow) to cancel/delete the SN
-  story, so deletions reflect automatically instead of needing a sweep.
+- **Real-time (in progress):** decision = DELETE the SN record on ADO delete.
+  ADO tech is setting up the `workitem.deleted` service hook. SN side: route the
+  event (decision table -> subflow) to call `deleteByAdoId(adoId)`, which removes
+  the story and its link row. Helper is built; wiring pending the hook.
 
 ## Constraint
 
