@@ -259,6 +259,73 @@ ADOReconciliationUtil.prototype = {
         return { match: match, mismatch: mismatch, lost: lost, phantom: phantom, bothBlank: bothBlank };
     },
 
+    /**
+     * UAT Defect 5 - backfill the Project reference on stories that imported
+     * without it. The field map (System.AreaPath -> project) only resolves the
+     * area-leaf to a pm_project at sync time, so stories synced before the
+     * project record existed (or whose area leaf didn't name-match) stay blank.
+     *
+     * Deterministic: you pass the area path and the target project NUMBER, and
+     * every story in that area with an EMPTY project is set to it. Already-set
+     * stories are left alone.
+     *
+     *   // dry run (no writes) - see how many would change:
+     *   new ADOReconciliationUtil().backfillProject(
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation',
+     *     'PRJ0010017', false, true);
+     *   // commit:
+     *   new ADOReconciliationUtil().backfillProject(
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation',
+     *     'PRJ0010017', false, false);
+     *
+     * @param areaPath        ADO area path (exact, unless includeSubAreas)
+     * @param projectNumber   pm_project number, e.g. 'PRJ0010017'
+     * @param includeSubAreas true = area + sub-areas (UNDER); false = this area only
+     * @param dryRun          true = log only, no writes
+     */
+    backfillProject: function(areaPath, projectNumber, includeSubAreas, dryRun) {
+        var p = new GlideRecord('pm_project');
+        if (!p.get('number', projectNumber)) {
+            gs.error(this.LOG_PREFIX + 'pm_project ' + projectNumber + ' not found.');
+            return null;
+        }
+        var projSysId = p.getUniqueValue();
+        var projName = p.getDisplayValue();
+
+        var result = { scanned: 0, alreadySet: 0, updated: 0, missingStory: 0 };
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.query();
+        while (e.next()) {
+            var area = e.getDisplayValue(this.EXT_AREA_FIELD) || '';
+            var hit = includeSubAreas ? (area.indexOf(areaPath) === 0) : (area === areaPath);
+            if (!hit)
+                continue;
+
+            result.scanned++;
+            var story = new GlideRecord('rm_story');
+            if (!story.get(e.getValue('reference_value'))) {
+                result.missingStory++;
+                continue;
+            }
+            if (!gs.nil(story.getValue('project'))) {
+                result.alreadySet++;
+                continue;
+            }
+            if (!dryRun) {
+                story.setValue('project', projSysId);
+                story.setWorkflow(false);   // don't echo back to ADO / fire BRs
+                story.autoSysFields(false);
+                story.update();
+            }
+            result.updated++;
+        }
+
+        gs.info(this.LOG_PREFIX + 'backfillProject -> ' + projName +
+            (dryRun ? ' (DRY RUN) ' : ' ') + JSON.stringify(result));
+        return result;
+    },
+
     // ---------------------------------------------------------------------
     //  RECONCILIATION
     // ---------------------------------------------------------------------
