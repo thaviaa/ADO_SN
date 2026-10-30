@@ -9,18 +9,22 @@ ADOReconciliationUtil.prototype = {
         this.API_VERSION = '7.1';
         this.LOG_PREFIX = '[ADOReconciliationUtil] ';
 
-        // ADO work item type -> ServiceNow table that stores it.
+        // ADO work item type -> ServiceNow reference_table value in the external
+        // identifiers table (same string as the target table name).
         this.TYPE_MAP = {
             'User Story': 'rm_story',
             'Epic': 'rm_epic',
             'Feature': 'rm_feature'
         };
 
-        // SN reference field that holds the ADO external id, and the custom
-        // ADO-number field. The SN key set is built from BOTH so a record keyed
-        // either way still matches.
-        this.EXTERNAL_ID_FIELD = 'external_identifier'; // display value = ADO number
-        this.ADO_NUMBER_FIELD = 'u_ado_number';
+        // The integration keeps the ADO<->SN link in this table, one row per
+        // synced record. This is the authoritative SN key source (does NOT
+        // depend on u_ado_number being populated on the record).
+        this.EXT_TABLE = 'sn_int_common_external_identifiers';
+        this.EXT_ID_FIELD = 'external_id'; // the ADO work item number
+        this.EXT_REF_TABLE_FIELD = 'reference_table'; // 'rm_story' etc.
+        this.EXT_AREA_FIELD = 'ado_area'; // display = full ADO area path
+        this.EXT_PROJECT_FIELD = 'external_project'; // display = ADO project
     },
 
     // ---------------------------------------------------------------------
@@ -106,8 +110,8 @@ ADOReconciliationUtil.prototype = {
             return null;
         }
         var adoIds = this._getAdoIds({ type: workItemType }); // org-level
-        // Global vs global -> orphan count is meaningful.
-        return this._compare(adoIds, table, 'ALL PROJECTS / ' + workItemType, logAllMissing, true);
+        var snSet = this._getSnKeySet(table, null, null); // all synced records of this type
+        return this._compare(adoIds, snSet, 'ALL PROJECTS / ' + workItemType, logAllMissing);
     },
 
     /**
@@ -123,14 +127,14 @@ ADOReconciliationUtil.prototype = {
             return null;
         }
         var adoIds = this._getAdoIds({ project: project, type: workItemType, areaPath: areaPath });
+        // Scope the SN side to the same area/project so BOTH sides match and
+        // the orphan count is meaningful.
+        var snSet = this._getSnKeySet(table, project, areaPath);
         var label = project + (areaPath ? ' [' + areaPath + ']' : '') + ' / ' + workItemType;
-        // SN side is global here, so orphan count would be misleading - suppress it.
-        return this._compare(adoIds, table, label, logAllMissing, false);
+        return this._compare(adoIds, snSet, label, logAllMissing);
     },
 
-    _compare: function(adoIds, table, label, logAllMissing, reportOrphans) {
-        var snSet = this._getSnKeySet(table);
-
+    _compare: function(adoIds, snSet, label, logAllMissing) {
         // ADO id lookup for the reverse (orphan) check.
         var adoSet = {};
         for (var a = 0; a < adoIds.length; a++)
@@ -146,7 +150,7 @@ ADOReconciliationUtil.prototype = {
         for (var k in snSet) {
             if (!snSet.hasOwnProperty(k)) continue;
             snCount++;
-            if (reportOrphans && !adoSet[k]) {
+            if (!adoSet[k]) {
                 orphans++;
                 if (orphanSample.length < 50) orphanSample.push(k);
             }
@@ -154,9 +158,9 @@ ADOReconciliationUtil.prototype = {
 
         gs.info(this.LOG_PREFIX + '=== ' + label + ' ===');
         gs.info(this.LOG_PREFIX + 'ADO: ' + adoIds.length +
-            ' | SN keyed (' + table + '): ' + snCount +
-            ' | MISSING in SN: ' + missing.length +
-            (reportOrphans ? ' | ORPHAN in SN (not in ADO): ' + orphans : ''));
+            ' | SN synced: ' + snCount +
+            ' | MISSING in SN (in ADO, not SN): ' + missing.length +
+            ' | ORPHAN in SN (in SN, not ADO): ' + orphans);
 
         if (missing.length > 0) {
             this.profileMissing(missing);
@@ -168,8 +172,8 @@ ADOReconciliationUtil.prototype = {
                 gs.info(this.LOG_PREFIX + '(' + (missing.length - 100) +
                     ' more - pass logAllMissing=true to dump them all)');
         }
-        if (reportOrphans && orphans > 0)
-            gs.info(this.LOG_PREFIX + 'orphan sample (SN keys not in ADO): ' +
+        if (orphans > 0)
+            gs.info(this.LOG_PREFIX + 'orphan sample (SN external_ids not in ADO): ' +
                 orphanSample.join(', '));
 
         return {
@@ -304,20 +308,33 @@ ADOReconciliationUtil.prototype = {
     },
 
     /**
-     * Build the set of ADO ids that exist in SN for a table, keyed on BOTH the
-     * external-identifier display value AND u_ado_number (either match counts).
+     * Build the set of ADO ids that exist in SN, read straight from the
+     * external-identifiers table (the authoritative link). Optionally scope to a
+     * project and/or area path so it matches the ADO query's scope.
+     *
+     *   refTable  - reference_table value ('rm_story', 'rm_epic', ...)
+     *   project   - ADO project display (filters external_project) or null
+     *   areaPath  - ADO area path; matches ado_area display UNDER this path, or null
      */
-    _getSnKeySet: function(table) {
+    _getSnKeySet: function(refTable, project, areaPath) {
         var set = {};
-        var gr = new GlideRecord(table);
+        var gr = new GlideRecord(this.EXT_TABLE);
+        gr.addQuery(this.EXT_REF_TABLE_FIELD, refTable);
         gr.query();
         while (gr.next()) {
-            var ext = gr.getDisplayValue(this.EXTERNAL_ID_FIELD);
-            if (ext)
-                set[String(ext).trim()] = true;
-            var num = gr.getValue(this.ADO_NUMBER_FIELD);
-            if (num)
-                set[String(num).trim()] = true;
+            if (areaPath) {
+                var area = gr.getDisplayValue(this.EXT_AREA_FIELD) || '';
+                // UNDER semantics: the area or any sub-area.
+                if (area.indexOf(areaPath) !== 0)
+                    continue;
+            } else if (project) {
+                var proj = gr.getDisplayValue(this.EXT_PROJECT_FIELD) || '';
+                if (proj !== project)
+                    continue;
+            }
+            var id = gr.getValue(this.EXT_ID_FIELD);
+            if (id)
+                set[String(id).trim()] = true;
         }
         return set;
     },

@@ -38,6 +38,24 @@ touching the fetch or write logic.
 - The activity-stream formatter on the form can **filter/cap** which work notes
   show; the journal (`sys_journal_field`) is the source of truth.
 
+## The ADO<->SN link table (authoritative key)
+
+The integration stores the ADO<->SN mapping in **`sn_int_common_external_identifiers`**
+(plural), one row per synced record. Key fields:
+
+- `external_id` — the ADO work item number (e.g. 265129)
+- `reference_table` / `reference_value` — the SN table + record sys_id
+- `ado_area` — reference whose display is the full ADO **area path**
+  (`ITS - Landing Zone Remediation\ITPMO - Cloud Landing Zone Remediation`)
+- `ado_iteration`, `external_project` — ADO iteration / project (display = name)
+- `integration_type` — e.g. `Agile`
+
+This table is the reliable SN-side key for reconciliation — it does **not** depend
+on `u_ado_number` being populated on the record (which UAT showed is unreliable),
+and it lets you scope the SN side by `ado_area` / `external_project` to match an
+ADO WIQL scope exactly. The `external_identifier` reference field on `rm_story`
+points here and its display value is the ADO number.
+
 ## Auth
 
 - Token retrieval has two strategies: (1) `GlideOAuthClient` refresh-token grant,
