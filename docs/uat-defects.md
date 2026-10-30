@@ -10,7 +10,7 @@ Legend for **Fix type**:
 
 | # | ADO | Defect | Root cause (hypothesis) | Fix type | Status |
 |---|-----|--------|-------------------------|----------|--------|
-| 1 | 269816 | Backlog count of no-points stories: SN 63 vs ADO 83 (Cloud Landing Zone; 20 short) | **NOT missing records** — reconciliation shows ADO 6066 = SN 6066 for this area (0 missing, 0 orphan). The 20-delta is a view/filter or `story_points` mapping difference. `storyPointsAudit()` distinguishes which. | config or field map | diagnosing |
+| 1 | 269816 | Backlog count of no-points stories: SN 63 vs ADO 83 (Cloud Landing Zone; 20 short) | **RESOLVED — not a bug.** Reconciliation: ADO 6066 = SN 6066 (0 missing). Points map is correct (ADO 239597 blank = SN STRY0015567 blank). ADO "Removed" maps to SN "Cancelled", which the Agile Board backlog hides by design — hence the lower count. Resolution: align the ADO comparison query (exclude Removed) or document the backlog filter. | none (view/expectation) | explained |
 | 2 | 269821 | Epics: ADO Number field missing from form; ADO stories not linked to Epic | Form missing `u_ado_number`; `System.Parent` → Epic link not set | config + code | open |
 | 3 | 269817 | Releases: no stories listed under a Release in SN | Release not mapped / stories not linked to release | config + code | open |
 | 4 | 269823 | Themes: ADO Number not populated; epics/stories not linked to Theme | `u_ado_number` not set on theme; hierarchy linking missing | code | open |
