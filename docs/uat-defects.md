@@ -101,8 +101,11 @@ integration leaves the SN story in place — so deleted-in-ADO items become SN
 orphans and inflate counts (observed: SN 68 vs ADO 65 = 3 orphans; e.g. ADO
 251195 is in the Recycle Bin but still live in SN).
 
-- **Cleanup (built):** `handleDeleted(project, areaPath, 'report'|'delete', dryRun)`
+- **Cleanup (built + run in Test):** `handleDeleted(project, areaPath, 'report'|'delete', dryRun)`
   reads the ADO Recycle Bin and finds/removes SN stories whose ADO id is deleted.
+  Test run on Cloud Landing Zone area: 2,378 in the project Recycle Bin, 7 were
+  live orphans in SN (268457/251195/269244/269159/269160/269161/269162) -
+  deleted with their link rows. Still TODO: Dev + other envs.
 - **Real-time (in progress):** decision = DELETE the SN record on ADO delete.
   ADO tech is setting up the `workitem.deleted` service hook. SN side: route the
   event (decision table -> subflow) to call `deleteByAdoId(adoId)`, which removes
