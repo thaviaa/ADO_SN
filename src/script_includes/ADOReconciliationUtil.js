@@ -145,6 +145,110 @@ ADOReconciliationUtil.prototype = {
         return { total: total, noPoints: noPts, byState: byStateNoPts };
     },
 
+    /**
+     * UAT Defect 1/5 - Story Points mapping audit. For every story in the area,
+     * compare ADO Microsoft.VSTS.Scheduling.StoryPoints to SN story_points and
+     * categorize the discrepancy, with samples showing the actual values:
+     *   match        - same value both sides
+     *   mismatch     - both set but different (mapped from wrong field?)
+     *   lost         - ADO has points, SN blank (mapping not pulling)
+     *   phantom      - SN has points, ADO blank (default / stale / wrong source)
+     *   both-blank    - neither side has points
+     *
+     *   new ADOReconciliationUtil().storyPointsCompare(
+     *     'ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation');
+     */
+    storyPointsCompare: function(project, areaPath) {
+        // SN side: external_id -> story_points (string or null)
+        var refToExt = {}, refs = [];
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.query();
+        while (e.next()) {
+            if (areaPath && (e.getDisplayValue(this.EXT_AREA_FIELD) || '').indexOf(areaPath) !== 0)
+                continue;
+            var ext = e.getValue(this.EXT_ID_FIELD);
+            var ref = e.getValue('reference_value');
+            if (ext && ref) { refToExt[ref] = ext; refs.push(ref); }
+        }
+
+        var snPoints = {};
+        for (var i = 0; i < refs.length; i += 500) {
+            var g = new GlideRecord('rm_story');
+            g.addQuery('sys_id', 'IN', refs.slice(i, i + 500).join(','));
+            g.query();
+            while (g.next()) {
+                var exid = refToExt[g.getUniqueValue()];
+                snPoints[exid] = gs.nil(g.getValue('story_points')) ? null : String(g.getValue('story_points'));
+            }
+        }
+
+        // ADO side: batch StoryPoints for the same ids.
+        var extIds = [];
+        for (var key in snPoints) {
+            if (snPoints.hasOwnProperty(key)) extIds.push(key);
+        }
+
+        var adoPoints = {};
+        var token = this.util._getAccessToken(true);
+        for (var j = 0; j < extIds.length; j += 200) {
+            var chunk = extIds.slice(j, j + 200);
+            var nums = [];
+            for (var c = 0; c < chunk.length; c++) nums.push(parseInt(chunk[c], 10));
+
+            var r = new sn_ws.RESTMessageV2();
+            r.setHttpMethod('POST');
+            r.setEndpoint(this.ADO_ORG_URL + '/_apis/wit/workitemsbatch?api-version=' + this.API_VERSION);
+            r.setRequestHeader('Authorization', 'Bearer ' + token);
+            r.setRequestHeader('Content-Type', 'application/json');
+            r.setRequestBody(JSON.stringify({
+                ids: nums,
+                fields: ['Microsoft.VSTS.Scheduling.StoryPoints']
+            }));
+            var resp = r.execute();
+            if (resp.getStatusCode() != 200) {
+                gs.warn(this.LOG_PREFIX + 'workitemsbatch ' + resp.getStatusCode() + ' at ' + j);
+                continue;
+            }
+            var val = (JSON.parse(resp.getBody() || '{}').value) || [];
+            for (var v = 0; v < val.length; v++) {
+                var pts = (val[v].fields || {})['Microsoft.VSTS.Scheduling.StoryPoints'];
+                adoPoints[String(val[v].id)] = gs.nil(pts) ? null : String(pts);
+            }
+        }
+
+        // Compare.
+        var match = 0, mismatch = 0, lost = 0, phantom = 0, bothBlank = 0;
+        var sMis = [], sLost = [], sPhantom = [];
+        for (var id in snPoints) {
+            if (!snPoints.hasOwnProperty(id)) continue;
+            var s = snPoints[id];
+            var a = adoPoints.hasOwnProperty(id) ? adoPoints[id] : null;
+            var sB = (s === null), aB = (a === null);
+            if (sB && aB) {
+                bothBlank++;
+            } else if (!sB && !aB) {
+                if (Number(s) === Number(a)) match++;
+                else { mismatch++; if (sMis.length < 20) sMis.push(id + ': ADO=' + a + ' SN=' + s); }
+            } else if (!aB && sB) {
+                lost++; if (sLost.length < 20) sLost.push(id + ': ADO=' + a);
+            } else {
+                phantom++; if (sPhantom.length < 20) sPhantom.push(id + ': SN=' + s);
+            }
+        }
+
+        gs.info(this.LOG_PREFIX + 'POINTS COMPARE (' + (areaPath || project || 'ALL') +
+            ') over ' + extIds.length + ' stories:');
+        gs.info(this.LOG_PREFIX + '  match=' + match + ' | mismatch=' + mismatch +
+            ' | lost(ADO has, SN blank)=' + lost + ' | phantom(SN has, ADO blank)=' + phantom +
+            ' | both-blank=' + bothBlank);
+        if (sMis.length) gs.info(this.LOG_PREFIX + '  mismatch sample: ' + sMis.join(' | '));
+        if (sLost.length) gs.info(this.LOG_PREFIX + '  lost sample: ' + sLost.join(' | '));
+        if (sPhantom.length) gs.info(this.LOG_PREFIX + '  phantom sample: ' + sPhantom.join(' | '));
+        return { match: match, mismatch: mismatch, lost: lost, phantom: phantom, bothBlank: bothBlank };
+    },
+
     // ---------------------------------------------------------------------
     //  RECONCILIATION
     // ---------------------------------------------------------------------
