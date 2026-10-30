@@ -50,6 +50,34 @@ Make `acceptance_criteria` mandatory for manual creation without blocking
 integration inserts. UI Policy (form) + optionally a Data Policy scoped to exclude
 the integration user.
 
+## Story field map (Table Map: rm_story, "Meck-Agile-Template-1.0.0 map")
+
+Current 13 rows (External -> Internal):
+
+| ADO external field | SN field | Note |
+|--------------------|----------|------|
+| System.Title | short_description | ok |
+| System.State | state | ok (needs choice map if ADO states != SN choices) |
+| System.Parent | epic | **suspect** - parent is often a Feature, not an Epic (Defect 2) |
+| System.Id | u_ado_number | ok |
+| System.History | work_notes | ok |
+| System.Description | html_description | ok |
+| System.CreatedBy | sys_created_by | platform-stamped; won't hold ADO value |
+| System.ChangedBy | sys_updated_by | platform-stamped; won't hold ADO value |
+| System.AssignedTo | assigned_to | ok |
+| System.AreaPath | project | **suspect** - area path into project field (Defect 5 count skew) |
+| Microsoft.VSTS.Scheduling.StoryPoints | story_points | **correct** - points map is fine |
+| Microsoft.VSTS.Common.Priority | priority | ok |
+| Microsoft.VSTS.Common.AcceptanceCriteria | acceptance_criteria | ok |
+
+**Missing rows (cause Defect 5 blanks):**
+- **Theme** - no mapping row
+- **Sprint** - no `System.IterationPath -> sprint` row
+- **Release** - no mapping row
+
+Points mapping is CORRECT; the earlier "points wrong" was comparing two
+different work items (ADO 239597 vs SN 239579 - transposed digits).
+
 ## Constraint
 
 Fixes are developed in this repo. Instance-only configuration (form layouts, field
