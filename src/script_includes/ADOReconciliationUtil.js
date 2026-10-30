@@ -106,7 +106,8 @@ ADOReconciliationUtil.prototype = {
             return null;
         }
         var adoIds = this._getAdoIds({ type: workItemType }); // org-level
-        return this._compare(adoIds, table, 'ALL PROJECTS / ' + workItemType, logAllMissing);
+        // Global vs global -> orphan count is meaningful.
+        return this._compare(adoIds, table, 'ALL PROJECTS / ' + workItemType, logAllMissing, true);
     },
 
     /**
@@ -123,10 +124,11 @@ ADOReconciliationUtil.prototype = {
         }
         var adoIds = this._getAdoIds({ project: project, type: workItemType, areaPath: areaPath });
         var label = project + (areaPath ? ' [' + areaPath + ']' : '') + ' / ' + workItemType;
-        return this._compare(adoIds, table, label, logAllMissing);
+        // SN side is global here, so orphan count would be misleading - suppress it.
+        return this._compare(adoIds, table, label, logAllMissing, false);
     },
 
-    _compare: function(adoIds, table, label, logAllMissing) {
+    _compare: function(adoIds, table, label, logAllMissing, reportOrphans) {
         var snSet = this._getSnKeySet(table);
 
         // ADO id lookup for the reverse (orphan) check.
@@ -144,7 +146,7 @@ ADOReconciliationUtil.prototype = {
         for (var k in snSet) {
             if (!snSet.hasOwnProperty(k)) continue;
             snCount++;
-            if (!adoSet[k]) {
+            if (reportOrphans && !adoSet[k]) {
                 orphans++;
                 if (orphanSample.length < 50) orphanSample.push(k);
             }
@@ -154,7 +156,7 @@ ADOReconciliationUtil.prototype = {
         gs.info(this.LOG_PREFIX + 'ADO: ' + adoIds.length +
             ' | SN keyed (' + table + '): ' + snCount +
             ' | MISSING in SN: ' + missing.length +
-            ' | ORPHAN in SN (not in ADO query): ' + orphans);
+            (reportOrphans ? ' | ORPHAN in SN (not in ADO): ' + orphans : ''));
 
         if (missing.length > 0) {
             this.profileMissing(missing);
@@ -166,7 +168,7 @@ ADOReconciliationUtil.prototype = {
                 gs.info(this.LOG_PREFIX + '(' + (missing.length - 100) +
                     ' more - pass logAllMissing=true to dump them all)');
         }
-        if (orphans > 0)
+        if (reportOrphans && orphans > 0)
             gs.info(this.LOG_PREFIX + 'orphan sample (SN keys not in ADO): ' +
                 orphanSample.join(', '));
 

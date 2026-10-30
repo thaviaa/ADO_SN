@@ -20,7 +20,12 @@ new ADOReconciliationUtil().listProjects();
 // new ADOReconciliationUtil().reconcileGlobal('User Story');
 // new ADOReconciliationUtil().reconcileGlobal('Epic');
 
-// ---- STEP 4: scoped to a real project (+ optional area path) ----
-// new ADOReconciliationUtil().reconcile('ITS - ServiceNow', 'User Story');
-// new ADOReconciliationUtil().reconcile('ITS - ServiceNow', 'User Story',
-//     'ITS - ServiceNow\\Cloud Landing Zone');
+// ---- STEP 4: Cloud Landing Zone (UAT Defects 1 & 5) ----
+// Tester's "Cloud Landing Zone" = this area path under the Landing Zone project.
+// Watch for: MISSING count, "Missing with NO story points" (ties to the 83 vs 63
+// delta in Defect 1), and the STATE/AREA breakdown.
+new ADOReconciliationUtil().reconcile(
+    'ITS - Landing Zone Remediation',
+    'User Story',
+    'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation'
+);
