@@ -94,6 +94,19 @@ an artifact of ADO `workitemsbatch` defaulting to errorPolicy=fail (one
 deleted id 404s the whole 200-batch); fixed with errorPolicy=omit plus an
 `ado-deleted` bucket so deleted ADO items aren't miscounted as phantom.
 
+## ADO deletions not reflected in SN (UAT follow-up)
+
+When a work item is deleted in ADO it moves to the project Recycle Bin, but the
+integration leaves the SN story in place — so deleted-in-ADO items become SN
+orphans and inflate counts (observed: SN 68 vs ADO 65 = 3 orphans; e.g. ADO
+251195 is in the Recycle Bin but still live in SN).
+
+- **Cleanup (built):** `handleDeleted(project, areaPath, 'report'|'delete', dryRun)`
+  reads the ADO Recycle Bin and finds/removes SN stories whose ADO id is deleted.
+- **Real-time (TODO):** subscribe the integration to the ADO `workitem.deleted`
+  service hook and route it (decision table -> subflow) to cancel/delete the SN
+  story, so deletions reflect automatically instead of needing a sweep.
+
 ## Constraint
 
 Fixes are developed in this repo. Instance-only configuration (form layouts, field

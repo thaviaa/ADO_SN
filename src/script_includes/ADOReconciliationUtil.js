@@ -326,6 +326,100 @@ ADOReconciliationUtil.prototype = {
         return result;
     },
 
+    /**
+     * UAT follow-up: ADO deletions aren't reflected in SN. When a work item is
+     * deleted in ADO it goes to the project Recycle Bin, but its SN story stays,
+     * inflating counts (e.g. SN 68 vs ADO 65 = 3 deleted-in-ADO orphans).
+     *
+     * This reads the ADO Recycle Bin for a project and finds SN stories whose
+     * ADO id is in it, then reports / cancels / deletes them.
+     *
+     *   // report only (default):
+     *   new ADOReconciliationUtil().handleDeleted('ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation');
+     *   // delete the SN orphans (dry run first!):
+     *   new ADOReconciliationUtil().handleDeleted('ITS - Landing Zone Remediation',
+     *     null, 'delete', true);
+     *
+     * @param project   ADO project whose Recycle Bin to read (required)
+     * @param areaPath  optional - limit SN scope to this area (UNDER)
+     * @param action    'report' (default) | 'delete'
+     * @param dryRun    true = log only (for 'delete')
+     */
+    handleDeleted: function(project, areaPath, action, dryRun) {
+        action = action || 'report';
+        var deleted = this._getRecycleBinIds(project);
+        var delCount = 0;
+        for (var d in deleted) { if (deleted.hasOwnProperty(d)) delCount++; }
+        if (delCount === 0) {
+            gs.info(this.LOG_PREFIX + 'Recycle Bin empty or unreadable for ' + project + '; nothing to do.');
+            return null;
+        }
+
+        var result = { scanned: 0, orphansInSn: 0, deletedSn: 0, sample: [] };
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.query();
+        while (e.next()) {
+            if (areaPath) {
+                var a = e.getDisplayValue(this.EXT_AREA_FIELD) || '';
+                if (a.indexOf(areaPath) !== 0) continue;
+            }
+            result.scanned++;
+            var extId = e.getValue(this.EXT_ID_FIELD);
+            if (!deleted[extId]) continue;
+
+            result.orphansInSn++;
+            var story = new GlideRecord('rm_story');
+            if (!story.get(e.getValue('reference_value'))) continue;
+            if (result.sample.length < 40)
+                result.sample.push(extId + '=' + story.getValue('number'));
+
+            if (action === 'delete' && !dryRun) {
+                story.setWorkflow(false);
+                story.deleteRecord();
+                // also remove the now-dangling external-id link row
+                e.deleteRecord();
+                result.deletedSn++;
+            }
+        }
+
+        gs.info(this.LOG_PREFIX + 'handleDeleted (' + project + ', action=' + action +
+            (dryRun ? ', DRY RUN' : '') + '): ' + JSON.stringify({
+                recycleBin: delCount, scanned: result.scanned,
+                orphansInSn: result.orphansInSn, deletedSn: result.deletedSn
+            }));
+        if (result.sample.length)
+            gs.info(this.LOG_PREFIX + 'orphan sample: ' + result.sample.join(', '));
+        return result;
+    },
+
+    /** Read the ADO project Recycle Bin; returns { deletedWorkItemId: true }. */
+    _getRecycleBinIds: function(project) {
+        var token = this.util._getAccessToken(true);
+        var r = new sn_ws.RESTMessageV2();
+        r.setHttpMethod('GET');
+        r.setEndpoint(this.ADO_ORG_URL + '/' + encodeURIComponent(project) +
+            '/_apis/wit/recyclebin?api-version=7.1-preview.2');
+        r.setRequestHeader('Authorization', 'Bearer ' + token);
+        r.setRequestHeader('Accept', 'application/json');
+        var resp = r.execute();
+        var set = {};
+        if (resp.getStatusCode() == 200) {
+            try {
+                var val = (JSON.parse(resp.getBody() || '{}').value) || [];
+                for (var i = 0; i < val.length; i++) set[String(val[i].id)] = true;
+                gs.info(this.LOG_PREFIX + 'Recycle Bin (' + project + '): ' + val.length + ' deleted work items.');
+            } catch (ex) {
+                gs.error(this.LOG_PREFIX + 'Failed to parse recyclebin: ' + ex.message);
+            }
+        } else {
+            gs.error(this.LOG_PREFIX + 'recyclebin returned ' + resp.getStatusCode() +
+                '. First 200: ' + (resp.getBody() || '').substring(0, 200));
+        }
+        return set;
+    },
+
     // ---------------------------------------------------------------------
     //  RECONCILIATION
     // ---------------------------------------------------------------------
