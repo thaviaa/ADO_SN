@@ -191,6 +191,7 @@ ADOReconciliationUtil.prototype = {
         }
 
         var adoPoints = {};
+        var adoReturned = {}; // ids ADO actually returned (vs deleted/not found)
         var token = this.util._getAccessToken(true);
         for (var j = 0; j < extIds.length; j += 200) {
             var chunk = extIds.slice(j, j + 200);
@@ -204,7 +205,10 @@ ADOReconciliationUtil.prototype = {
             r.setRequestHeader('Content-Type', 'application/json');
             r.setRequestBody(JSON.stringify({
                 ids: nums,
-                fields: ['Microsoft.VSTS.Scheduling.StoryPoints']
+                fields: ['Microsoft.VSTS.Scheduling.StoryPoints'],
+                // omit (not fail) so one deleted id doesn't 404 the whole batch
+                // and get miscounted as phantom.
+                errorPolicy: 'omit'
             }));
             var resp = r.execute();
             if (resp.getStatusCode() != 200) {
@@ -213,16 +217,22 @@ ADOReconciliationUtil.prototype = {
             }
             var val = (JSON.parse(resp.getBody() || '{}').value) || [];
             for (var v = 0; v < val.length; v++) {
+                var vid = String(val[v].id);
+                adoReturned[vid] = true;
                 var pts = (val[v].fields || {})['Microsoft.VSTS.Scheduling.StoryPoints'];
-                adoPoints[String(val[v].id)] = gs.nil(pts) ? null : String(pts);
+                adoPoints[vid] = gs.nil(pts) ? null : String(pts);
             }
         }
 
         // Compare.
-        var match = 0, mismatch = 0, lost = 0, phantom = 0, bothBlank = 0;
+        var match = 0, mismatch = 0, lost = 0, phantom = 0, bothBlank = 0, adoMissing = 0;
         var sMis = [], sLost = [], sPhantom = [];
         for (var id in snPoints) {
             if (!snPoints.hasOwnProperty(id)) continue;
+            if (!adoReturned[id]) {
+                adoMissing++; // ADO work item deleted / not found - not a mapping issue
+                continue;
+            }
             var s = snPoints[id];
             var a = adoPoints.hasOwnProperty(id) ? adoPoints[id] : null;
             var sB = (s === null), aB = (a === null);
@@ -242,7 +252,7 @@ ADOReconciliationUtil.prototype = {
             ') over ' + extIds.length + ' stories:');
         gs.info(this.LOG_PREFIX + '  match=' + match + ' | mismatch=' + mismatch +
             ' | lost(ADO has, SN blank)=' + lost + ' | phantom(SN has, ADO blank)=' + phantom +
-            ' | both-blank=' + bothBlank);
+            ' | both-blank=' + bothBlank + ' | ado-deleted=' + adoMissing);
         if (sMis.length) gs.info(this.LOG_PREFIX + '  mismatch sample: ' + sMis.join(' | '));
         if (sLost.length) gs.info(this.LOG_PREFIX + '  lost sample: ' + sLost.join(' | '));
         if (sPhantom.length) gs.info(this.LOG_PREFIX + '  phantom sample: ' + sPhantom.join(' | '));
@@ -537,7 +547,9 @@ ADOReconciliationUtil.prototype = {
             r.setRequestBody(JSON.stringify({
                 ids: idNums,
                 fields: ['System.TeamProject', 'System.AreaPath', 'System.State',
-                    'System.IterationPath', 'Microsoft.VSTS.Scheduling.StoryPoints']
+                    'System.IterationPath', 'Microsoft.VSTS.Scheduling.StoryPoints'],
+                // omit (not fail) so one deleted id doesn't 404 the whole batch.
+                errorPolicy: 'omit'
             }));
 
             var resp = r.execute();

@@ -78,6 +78,12 @@ Current 13 rows (External -> Internal):
 Points mapping is CORRECT; the earlier "points wrong" was comparing two
 different work items (ADO 239597 vs SN 239579 - transposed digits).
 
+**Test env also confirmed correct:** storyPointsCompare over 6095 stories
+returned match=5431, mismatch=0, lost=0, both-blank=68. The phantom=596 was
+an artifact of ADO `workitemsbatch` defaulting to errorPolicy=fail (one
+deleted id 404s the whole 200-batch); fixed with errorPolicy=omit plus an
+`ado-deleted` bucket so deleted ADO items aren't miscounted as phantom.
+
 ## Constraint
 
 Fixes are developed in this repo. Instance-only configuration (form layouts, field
