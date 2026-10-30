@@ -75,6 +75,16 @@ Current 13 rows (External -> Internal):
 - **Sprint** - no `System.IterationPath -> sprint` row
 - **Release** - no mapping row
 
+**Project field (System.AreaPath -> project, ref pm_project):**
+- Imported empty on stories synced before the pm_project existed; the mapping
+  resolves the area LEAF by name, but the leaf (`ITPMO - Cloud Landing Zone
+  Remediation`) doesn't match the project name (`Cloud Landing Zone
+  Remediation`), so it fails.
+- **Backfilled (Test):** `backfillProject(area, 'PRJ0010017', false, false)` set
+  1,256 stories (of 6,095 in the area; 4,839 already set). Still TODO: run in
+  Dev/other envs; fix the resolver so NEW imports populate project (strip the
+  `ITPMO - ` prefix or map from a cleaner source).
+
 Points mapping is CORRECT; the earlier "points wrong" was comparing two
 different work items (ADO 239597 vs SN 239579 - transposed digits).
 
