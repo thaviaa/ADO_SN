@@ -181,15 +181,54 @@ ADOReconciliationUtil.prototype = {
         };
     },
 
+    // Fallback state list used when a query overflows 20000 and the per-type
+    // states can't be fetched (e.g. org-level global run). Covers Agile/Scrum/
+    // Basic/CMMI defaults; custom states would be missed (a warning is logged).
+    DEFAULT_STATES: ['New', 'Active', 'Resolved', 'Closed', 'Removed', 'Approved',
+        'Committed', 'Done', 'In Progress', 'To Do', 'Proposed', 'Completed',
+        'Design', 'Ready', 'Open'],
+
     /**
      * Pull work-item ids via WIQL. opts = { type, project?, areaPath? }.
-     * No project -> org/collection level (all projects). WIQL caps at 20000.
+     * No project -> org/collection level (all projects). WIQL caps at 20000 per
+     * query, so if the query overflows, this auto-partitions by State and unions
+     * the results (each partition stays under the cap).
      */
     _getAdoIds: function(opts) {
+        var first = this._wiql(opts, null);
+        if (!first.overflow)
+            return first.ids;
+
+        gs.info(this.LOG_PREFIX + 'Query > 20000 items - partitioning by State...');
+        var states = (opts.project ? this._getTypeStates(opts.project, opts.type) : null);
+        if (!states || !states.length)
+            states = this.DEFAULT_STATES;
+
+        var set = {};
+        for (var s = 0; s < states.length; s++) {
+            var part = this._wiql(opts, states[s]);
+            if (part.overflow)
+                gs.warn(this.LOG_PREFIX + 'State "' + states[s] +
+                    '" still > 20000 - results for it are incomplete.');
+            for (var i = 0; i < part.ids.length; i++)
+                set[part.ids[i]] = true;
+        }
+        var ids = [];
+        for (var k in set) {
+            if (set.hasOwnProperty(k)) ids.push(k);
+        }
+        return ids;
+    },
+
+    /**
+     * Run one WIQL query. Returns { ids: [...], overflow: bool }.
+     * overflow=true means the 20000 size limit (VS402337) was hit.
+     */
+    _wiql: function(opts, stateFilter) {
         var token = this.util._getAccessToken(true);
         if (!token) {
             gs.error(this.LOG_PREFIX + 'No access token for WIQL.');
-            return [];
+            return { ids: [], overflow: false };
         }
 
         var base = opts.project ?
@@ -203,6 +242,10 @@ ADOReconciliationUtil.prototype = {
             var safeArea = String(opts.areaPath).replace(/'/g, "''");
             wiql += " AND [System.AreaPath] UNDER '" + safeArea + "'";
         }
+        if (stateFilter) {
+            var safeState = String(stateFilter).replace(/'/g, "''");
+            wiql += " AND [System.State] = '" + safeState + "'";
+        }
 
         var r = new sn_ws.RESTMessageV2();
         r.setHttpMethod('POST');
@@ -215,21 +258,49 @@ ADOReconciliationUtil.prototype = {
         var resp = r.execute();
         var status = resp.getStatusCode();
         var body = resp.getBody() || '';
-        if (status != 200) {
-            gs.error(this.LOG_PREFIX + 'WIQL returned ' + status + '. First 300 chars: ' +
-                body.substring(0, 300));
-            return [];
+
+        if (status == 200) {
+            var ids = [];
+            try {
+                var wis = (JSON.parse(body).workItems) || [];
+                for (var i = 0; i < wis.length; i++)
+                    ids.push(String(wis[i].id));
+            } catch (e) {
+                gs.error(this.LOG_PREFIX + 'Failed to parse WIQL response: ' + e.message);
+            }
+            return { ids: ids, overflow: false };
         }
 
-        var ids = [];
+        if (status == 400 && body.indexOf('VS402337') !== -1)
+            return { ids: [], overflow: true };
+
+        gs.error(this.LOG_PREFIX + 'WIQL returned ' + status + '. First 300 chars: ' +
+            body.substring(0, 300));
+        return { ids: [], overflow: false };
+    },
+
+    /** Fetch the valid state names for a work item type in a project. */
+    _getTypeStates: function(project, type) {
+        var token = this.util._getAccessToken(true);
+        var r = new sn_ws.RESTMessageV2();
+        r.setHttpMethod('GET');
+        r.setEndpoint(this.ADO_ORG_URL + '/' + encodeURIComponent(project) +
+            '/_apis/wit/workitemtypes/' + encodeURIComponent(type) +
+            '/states?api-version=' + this.API_VERSION);
+        r.setRequestHeader('Authorization', 'Bearer ' + token);
+        r.setRequestHeader('Accept', 'application/json');
+        var resp = r.execute();
+        if (resp.getStatusCode() != 200)
+            return null;
         try {
-            var wis = (JSON.parse(body).workItems) || [];
-            for (var i = 0; i < wis.length; i++)
-                ids.push(String(wis[i].id));
+            var val = (JSON.parse(resp.getBody() || '{}').value) || [];
+            var names = [];
+            for (var i = 0; i < val.length; i++)
+                names.push(val[i].name);
+            return names;
         } catch (e) {
-            gs.error(this.LOG_PREFIX + 'Failed to parse WIQL response: ' + e.message);
+            return null;
         }
-        return ids;
     },
 
     /**
