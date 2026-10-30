@@ -14,7 +14,6 @@ ADOReconciliationUtil.prototype = {
             'User Story': 'rm_story',
             'Epic': 'rm_epic',
             'Feature': 'rm_feature'
-            // 'Theme' handling is scrum_theme if your model maps it; add as needed.
         };
 
         // SN reference field that holds the ADO external id, and the custom
@@ -24,22 +23,116 @@ ADOReconciliationUtil.prototype = {
         this.ADO_NUMBER_FIELD = 'u_ado_number';
     },
 
+    // ---------------------------------------------------------------------
+    //  DISCOVERY - run these first to learn the real ADO structure.
+    //  The testers' "Project" (e.g. "Cloud Landing Zone") is usually an ADO
+    //  AREA PATH, not a top-level ADO project. WIQL scoped to a project name
+    //  that doesn't exist returns TF200016 / HTTP 404.
+    // ---------------------------------------------------------------------
+
+    /** List the real ADO projects. new ADOReconciliationUtil().listProjects(); */
+    listProjects: function() {
+        var token = this.util._getAccessToken(true);
+        var r = new sn_ws.RESTMessageV2();
+        r.setHttpMethod('GET');
+        r.setEndpoint(this.ADO_ORG_URL + '/_apis/projects?$top=500&api-version=' + this.API_VERSION);
+        r.setRequestHeader('Authorization', 'Bearer ' + token);
+        r.setRequestHeader('Accept', 'application/json');
+        var resp = r.execute();
+        if (resp.getStatusCode() != 200) {
+            gs.error(this.LOG_PREFIX + 'listProjects returned ' + resp.getStatusCode() +
+                ': ' + (resp.getBody() || '').substring(0, 300));
+            return [];
+        }
+        var val = (JSON.parse(resp.getBody() || '{}').value) || [];
+        var names = [];
+        for (var i = 0; i < val.length; i++)
+            names.push(val[i].name);
+        gs.info(this.LOG_PREFIX + 'ADO projects (' + names.length + '): ' + JSON.stringify(names));
+        return names;
+    },
+
     /**
-     * Reconcile one ADO project + work item type.
-     * Logs ADO count, SN count, and the missing-in-SN count, then profiles the
-     * missing set by Area Path and State so the cause is visible.
-     *
-     *   new ADOReconciliationUtil().reconcile('Cloud Landing Zone', 'User Story');
+     * Print the Area Path tree for a project so you can find where a tester's
+     * "project" (e.g. Cloud Landing Zone) actually lives.
+     *   new ADOReconciliationUtil().listAreaPaths('ITS - ServiceNow', 5);
      */
-    reconcile: function(project, workItemType, logAllMissing) {
+    listAreaPaths: function(project, depth) {
+        var token = this.util._getAccessToken(true);
+        var r = new sn_ws.RESTMessageV2();
+        r.setHttpMethod('GET');
+        r.setEndpoint(this.ADO_ORG_URL + '/' + encodeURIComponent(project) +
+            '/_apis/wit/classificationnodes/areas?$depth=' + (depth || 5) +
+            '&api-version=' + this.API_VERSION);
+        r.setRequestHeader('Authorization', 'Bearer ' + token);
+        r.setRequestHeader('Accept', 'application/json');
+        var resp = r.execute();
+        if (resp.getStatusCode() != 200) {
+            gs.error(this.LOG_PREFIX + 'listAreaPaths returned ' + resp.getStatusCode() +
+                ': ' + (resp.getBody() || '').substring(0, 300));
+            return;
+        }
+        var root = JSON.parse(resp.getBody() || '{}');
+        var lines = [];
+        this._walkAreas(root, '', lines);
+        gs.info(this.LOG_PREFIX + 'Area paths under "' + project + '":\n' + lines.join('\n'));
+    },
+
+    _walkAreas: function(node, prefix, lines) {
+        if (!node) return;
+        var path = prefix ? prefix + '\\' + node.name : node.name;
+        lines.push('  ' + path);
+        var kids = node.children || [];
+        for (var i = 0; i < kids.length; i++)
+            this._walkAreas(kids[i], path, lines);
+    },
+
+    // ---------------------------------------------------------------------
+    //  RECONCILIATION
+    // ---------------------------------------------------------------------
+
+    /**
+     * Global reconciliation: every ADO work item of a type across the WHOLE
+     * org/collection vs every keyed SN record. Reports BOTH directions:
+     *   - MISSING in SN (in ADO, not in SN)        -> import gap
+     *   - ORPHAN in SN  (keyed in SN, not in ADO)  -> stale/removed in ADO
+     *
+     *   new ADOReconciliationUtil().reconcileGlobal('User Story');
+     */
+    reconcileGlobal: function(workItemType, logAllMissing) {
         var table = this.TYPE_MAP[workItemType];
         if (!table) {
-            gs.error(this.LOG_PREFIX + 'No SN table mapped for work item type "' + workItemType + '"');
+            gs.error(this.LOG_PREFIX + 'No SN table mapped for "' + workItemType + '"');
             return null;
         }
+        var adoIds = this._getAdoIds({ type: workItemType }); // org-level
+        return this._compare(adoIds, table, 'ALL PROJECTS / ' + workItemType, logAllMissing);
+    },
 
-        var adoIds = this._getAdoIds(project, workItemType);
+    /**
+     * Project-scoped reconciliation (use a REAL ADO project name from
+     * listProjects()). Optionally restrict to an area path under it.
+     *   new ADOReconciliationUtil().reconcile('ITS - ServiceNow', 'User Story');
+     *   new ADOReconciliationUtil().reconcile('ITS - ServiceNow', 'User Story', 'ITS - ServiceNow\\Cloud Landing Zone');
+     */
+    reconcile: function(project, workItemType, areaPath, logAllMissing) {
+        var table = this.TYPE_MAP[workItemType];
+        if (!table) {
+            gs.error(this.LOG_PREFIX + 'No SN table mapped for "' + workItemType + '"');
+            return null;
+        }
+        var adoIds = this._getAdoIds({ project: project, type: workItemType, areaPath: areaPath });
+        var label = project + (areaPath ? ' [' + areaPath + ']' : '') + ' / ' + workItemType;
+        return this._compare(adoIds, table, label, logAllMissing);
+    },
+
+    _compare: function(adoIds, table, label, logAllMissing) {
         var snSet = this._getSnKeySet(table);
+
+        // ADO id lookup for the reverse (orphan) check.
+        var adoSet = {};
+        for (var a = 0; a < adoIds.length; a++)
+            adoSet[adoIds[a]] = true;
 
         var missing = [];
         for (var i = 0; i < adoIds.length; i++) {
@@ -47,91 +140,88 @@ ADOReconciliationUtil.prototype = {
                 missing.push(adoIds[i]);
         }
 
-        var snCount = 0;
+        var snCount = 0, orphans = 0, orphanSample = [];
         for (var k in snSet) {
-            if (snSet.hasOwnProperty(k)) snCount++;
+            if (!snSet.hasOwnProperty(k)) continue;
+            snCount++;
+            if (!adoSet[k]) {
+                orphans++;
+                if (orphanSample.length < 50) orphanSample.push(k);
+            }
         }
 
-        gs.info(this.LOG_PREFIX + '=== ' + project + ' / ' + workItemType + ' ===');
-        gs.info(this.LOG_PREFIX + 'ADO work items: ' + adoIds.length +
-            ' | SN keyed records (' + table + '): ' + snCount +
-            ' | MISSING in SN: ' + missing.length);
+        gs.info(this.LOG_PREFIX + '=== ' + label + ' ===');
+        gs.info(this.LOG_PREFIX + 'ADO: ' + adoIds.length +
+            ' | SN keyed (' + table + '): ' + snCount +
+            ' | MISSING in SN: ' + missing.length +
+            ' | ORPHAN in SN (not in ADO query): ' + orphans);
 
         if (missing.length > 0) {
             this.profileMissing(missing);
-            // Sample (or all) the missing ids, chunked so logs don't truncate.
             var toLog = logAllMissing ? missing : missing.slice(0, 100);
-            for (var s = 0; s < toLog.length; s += 100) {
+            for (var s = 0; s < toLog.length; s += 100)
                 gs.info(this.LOG_PREFIX + 'missing ids [' + s + '..]: ' +
                     toLog.slice(s, s + 100).join(', '));
-            }
             if (!logAllMissing && missing.length > 100)
                 gs.info(this.LOG_PREFIX + '(' + (missing.length - 100) +
-                    ' more — pass logAllMissing=true to dump them all)');
+                    ' more - pass logAllMissing=true to dump them all)');
         }
+        if (orphans > 0)
+            gs.info(this.LOG_PREFIX + 'orphan sample (SN keys not in ADO): ' +
+                orphanSample.join(', '));
 
         return {
-            project: project,
-            type: workItemType,
+            label: label,
             ado: adoIds.length,
             sn: snCount,
-            missing: missing
+            missing: missing,
+            orphans: orphans
         };
     },
 
     /**
-     * Reconcile several project/type pairs in one run.
-     *   new ADOReconciliationUtil().reconcileAll([
-     *     {project:'Cloud Landing Zone', type:'User Story'},
-     *     {project:'Cloud Landing Zone', type:'Epic'},
-     *     {project:'ServiceNow FY26',    type:'Epic'}
-     *   ]);
+     * Pull work-item ids via WIQL. opts = { type, project?, areaPath? }.
+     * No project -> org/collection level (all projects). WIQL caps at 20000.
      */
-    reconcileAll: function(pairs) {
-        var results = [];
-        for (var i = 0; i < pairs.length; i++)
-            results.push(this.reconcile(pairs[i].project, pairs[i].type));
-        return results;
-    },
-
-    /**
-     * Pull every work-item id of a type in a project via WIQL.
-     * WIQL returns at most 20000 ids per query.
-     */
-    _getAdoIds: function(project, workItemType) {
+    _getAdoIds: function(opts) {
         var token = this.util._getAccessToken(true);
         if (!token) {
-            gs.error(this.LOG_PREFIX + 'No access token for WIQL on ' + project);
+            gs.error(this.LOG_PREFIX + 'No access token for WIQL.');
             return [];
+        }
+
+        var base = opts.project ?
+            this.ADO_ORG_URL + '/' + encodeURIComponent(opts.project) :
+            this.ADO_ORG_URL;
+        var endpoint = base + '/_apis/wit/wiql?api-version=' + this.API_VERSION;
+
+        var safeType = String(opts.type).replace(/'/g, "''");
+        var wiql = "SELECT [System.Id] FROM workitems WHERE [System.WorkItemType] = '" + safeType + "'";
+        if (opts.areaPath) {
+            var safeArea = String(opts.areaPath).replace(/'/g, "''");
+            wiql += " AND [System.AreaPath] UNDER '" + safeArea + "'";
         }
 
         var r = new sn_ws.RESTMessageV2();
         r.setHttpMethod('POST');
-        r.setEndpoint(this.ADO_ORG_URL + '/' + encodeURIComponent(project) +
-            '/_apis/wit/wiql?api-version=' + this.API_VERSION);
+        r.setEndpoint(endpoint);
         r.setRequestHeader('Authorization', 'Bearer ' + token);
         r.setRequestHeader('Content-Type', 'application/json');
         r.setRequestHeader('Accept', 'application/json');
-
-        // Escape single quotes in the type name for WIQL safety.
-        var safeType = String(workItemType).replace(/'/g, "''");
-        var wiql = "SELECT [System.Id] FROM workitems " +
-            "WHERE [System.WorkItemType] = '" + safeType + "'";
         r.setRequestBody(JSON.stringify({ query: wiql }));
 
         var resp = r.execute();
         var status = resp.getStatusCode();
         var body = resp.getBody() || '';
         if (status != 200) {
-            gs.error(this.LOG_PREFIX + 'WIQL returned ' + status + ' for ' + project +
-                '. First 300 chars: ' + body.substring(0, 300));
+            gs.error(this.LOG_PREFIX + 'WIQL returned ' + status + '. First 300 chars: ' +
+                body.substring(0, 300));
             return [];
         }
 
         var ids = [];
         try {
-            var parsed = JSON.parse(body);
-            var wis = parsed.workItems || [];
+            var wis = (JSON.parse(body).workItems) || [];
             for (var i = 0; i < wis.length; i++)
                 ids.push(String(wis[i].id));
         } catch (e) {
@@ -160,10 +250,10 @@ ADOReconciliationUtil.prototype = {
     },
 
     /**
-     * Fetch Area Path / State / Iteration for the missing ids (batched, 200 max
-     * per call) and tally them. This is the diagnostic payoff: the missing set
-     * almost always clusters in one State (e.g. Removed/Closed) or one Area Path
-     * that isn't routed into SN.
+     * Fetch Area Path / State / Iteration / Project / Story Points for the
+     * missing ids (batched, 200 max per call) and tally them. The missing set
+     * almost always clusters in one State (Removed/Closed), one Area Path, or
+     * one Project that isn't routed into SN.
      */
     profileMissing: function(missingIds) {
         var token = this.util._getAccessToken(true);
@@ -174,6 +264,7 @@ ADOReconciliationUtil.prototype = {
 
         var byArea = {};
         var byState = {};
+        var byProject = {};
         var noPoints = 0; // missing stories with no Story Points (ties to UAT Defect 1)
 
         for (var start = 0; start < missingIds.length; start += 200) {
@@ -190,8 +281,8 @@ ADOReconciliationUtil.prototype = {
             r.setRequestHeader('Accept', 'application/json');
             r.setRequestBody(JSON.stringify({
                 ids: idNums,
-                fields: ['System.AreaPath', 'System.State', 'System.IterationPath',
-                    'Microsoft.VSTS.Scheduling.StoryPoints']
+                fields: ['System.TeamProject', 'System.AreaPath', 'System.State',
+                    'System.IterationPath', 'Microsoft.VSTS.Scheduling.StoryPoints']
             }));
 
             var resp = r.execute();
@@ -204,8 +295,10 @@ ADOReconciliationUtil.prototype = {
                 var val = (JSON.parse(resp.getBody() || '{}').value) || [];
                 for (var i = 0; i < val.length; i++) {
                     var f = val[i].fields || {};
+                    var proj = f['System.TeamProject'] || '(none)';
                     var area = f['System.AreaPath'] || '(none)';
                     var state = f['System.State'] || '(none)';
+                    byProject[proj] = (byProject[proj] || 0) + 1;
                     byArea[area] = (byArea[area] || 0) + 1;
                     byState[state] = (byState[state] || 0) + 1;
                     if (gs.nil(f['Microsoft.VSTS.Scheduling.StoryPoints']))
@@ -216,11 +309,12 @@ ADOReconciliationUtil.prototype = {
             }
         }
 
+        gs.info(this.LOG_PREFIX + 'Missing by PROJECT: ' + JSON.stringify(byProject));
         gs.info(this.LOG_PREFIX + 'Missing by STATE: ' + JSON.stringify(byState));
         gs.info(this.LOG_PREFIX + 'Missing by AREA PATH: ' + JSON.stringify(byArea));
         gs.info(this.LOG_PREFIX + 'Missing with NO story points: ' + noPoints +
             ' (UAT Defect 1 - compare to the 83 vs 63 delta)');
-        return { byArea: byArea, byState: byState, noPoints: noPoints };
+        return { byProject: byProject, byArea: byArea, byState: byState, noPoints: noPoints };
     },
 
     type: 'ADOReconciliationUtil'
