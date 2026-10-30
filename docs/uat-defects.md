@@ -10,7 +10,7 @@ Legend for **Fix type**:
 
 | # | ADO | Defect | Root cause (hypothesis) | Fix type | Status |
 |---|-----|--------|-------------------------|----------|--------|
-| 1 | 269816 | Backlog count of no-points stories: SN 63 vs ADO 83 | Subset of count mismatch (#5) + `story_points` not mapped | config + code | open |
+| 1 | 269816 | Backlog count of no-points stories: SN 63 vs ADO 83 (Cloud Landing Zone; 20 short) | Subset of count mismatch (#5): the ~20 stories are absent from SN. SN count is *lower*, so it is missing records, not a points-mapping gap (an unmapped `story_points` would make SN's no-points count *higher*). | code (reconciliation) | diagnosing |
 | 2 | 269821 | Epics: ADO Number field missing from form; ADO stories not linked to Epic | Form missing `u_ado_number`; `System.Parent` → Epic link not set | config + code | open |
 | 3 | 269817 | Releases: no stories listed under a Release in SN | Release not mapped / stories not linked to release | config + code | open |
 | 4 | 269823 | Themes: ADO Number not populated; epics/stories not linked to Theme | `u_ado_number` not set on theme; hierarchy linking missing | code | open |

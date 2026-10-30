@@ -174,6 +174,7 @@ ADOReconciliationUtil.prototype = {
 
         var byArea = {};
         var byState = {};
+        var noPoints = 0; // missing stories with no Story Points (ties to UAT Defect 1)
 
         for (var start = 0; start < missingIds.length; start += 200) {
             var chunk = missingIds.slice(start, start + 200);
@@ -189,7 +190,8 @@ ADOReconciliationUtil.prototype = {
             r.setRequestHeader('Accept', 'application/json');
             r.setRequestBody(JSON.stringify({
                 ids: idNums,
-                fields: ['System.AreaPath', 'System.State', 'System.IterationPath']
+                fields: ['System.AreaPath', 'System.State', 'System.IterationPath',
+                    'Microsoft.VSTS.Scheduling.StoryPoints']
             }));
 
             var resp = r.execute();
@@ -206,6 +208,8 @@ ADOReconciliationUtil.prototype = {
                     var state = f['System.State'] || '(none)';
                     byArea[area] = (byArea[area] || 0) + 1;
                     byState[state] = (byState[state] || 0) + 1;
+                    if (gs.nil(f['Microsoft.VSTS.Scheduling.StoryPoints']))
+                        noPoints++;
                 }
             } catch (e) {
                 gs.warn(this.LOG_PREFIX + 'Failed to parse batch chunk at ' + start + ': ' + e.message);
@@ -214,7 +218,9 @@ ADOReconciliationUtil.prototype = {
 
         gs.info(this.LOG_PREFIX + 'Missing by STATE: ' + JSON.stringify(byState));
         gs.info(this.LOG_PREFIX + 'Missing by AREA PATH: ' + JSON.stringify(byArea));
-        return { byArea: byArea, byState: byState };
+        gs.info(this.LOG_PREFIX + 'Missing with NO story points: ' + noPoints +
+            ' (UAT Defect 1 - compare to the 83 vs 63 delta)');
+        return { byArea: byArea, byState: byState, noPoints: noPoints };
     },
 
     type: 'ADOReconciliationUtil'
