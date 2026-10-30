@@ -10,11 +10,11 @@ Legend for **Fix type**:
 
 | # | ADO | Defect | Root cause (hypothesis) | Fix type | Status |
 |---|-----|--------|-------------------------|----------|--------|
-| 1 | 269816 | Backlog count of no-points stories: SN 63 vs ADO 83 (Cloud Landing Zone; 20 short) | Subset of count mismatch (#5): the ~20 stories are absent from SN. SN count is *lower*, so it is missing records, not a points-mapping gap (an unmapped `story_points` would make SN's no-points count *higher*). | code (reconciliation) | diagnosing |
+| 1 | 269816 | Backlog count of no-points stories: SN 63 vs ADO 83 (Cloud Landing Zone; 20 short) | **NOT missing records** — reconciliation shows ADO 6066 = SN 6066 for this area (0 missing, 0 orphan). The 20-delta is a view/filter or `story_points` mapping difference. `storyPointsAudit()` distinguishes which. | config or field map | diagnosing |
 | 2 | 269821 | Epics: ADO Number field missing from form; ADO stories not linked to Epic | Form missing `u_ado_number`; `System.Parent` → Epic link not set | config + code | open |
 | 3 | 269817 | Releases: no stories listed under a Release in SN | Release not mapped / stories not linked to release | config + code | open |
 | 4 | 269823 | Themes: ADO Number not populated; epics/stories not linked to Theme | `u_ado_number` not set on theme; hierarchy linking missing | code | open |
-| 5 | 269818 | Stories: Theme/Epic/Points/Sprint/Release blank; ADO Number & Priority not on form; count SN 4,797 vs ADO 6,077 | Missing field maps; missing records; form fields; priority choice map | config + code | open |
+| 5 | 269818 | Stories: Theme/Epic/Points/Sprint/Release blank; ADO Number & Priority not on form; count SN 4,797 vs ADO 6,077 | **Count is NOT an import gap** — Cloud Landing Zone reconciles 6066=6066. The 4,797 is a filtered SN view. Real issues: missing field maps (Theme/Epic/Points/Sprint/Release), Priority choice map, ADO Number/Priority not on form. | config + code | count cleared; field maps open |
 | 6 | 269822 | Epics from ADO project "DSS – CCS Provider System" not in SPM | Project/area not discovered or not routed to a table map | config | open |
 | 7 | 269819 | New Story can be saved without Acceptance Criteria | `acceptance_criteria` not mandatory | code (quick win) | open |
 | 8 | 269820 | New ADO "Release 8" not in SN Release dropdown | ADO releases/iterations not synced into SN | code + config | open |

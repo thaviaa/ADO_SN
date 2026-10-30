@@ -91,6 +91,60 @@ ADOReconciliationUtil.prototype = {
             this._walkAreas(kids[i], path, lines);
     },
 
+    /**
+     * UAT Defect 1 diagnostic. The reconciliation proved the stories are all
+     * imported, so the 83-vs-63 "no story points" delta is a view/mapping
+     * difference, not missing records. This counts how many SN stories in the
+     * area actually have no story_points, UNFILTERED, and breaks it down by
+     * state - so you can tell whether the tester's 63 is a filtered board view
+     * (states excluded) or a story_points mapping problem.
+     *
+     *   new ADOReconciliationUtil().storyPointsAudit(
+     *     'ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation');
+     *
+     * Interpretation vs ADO's 83:
+     *   - SN no-points ~= 83  -> tester's 63 is a FILTERED board view; align the
+     *                            SN Agile Board backlog filter to the ADO query.
+     *   - SN no-points ~= 63  -> story_points is mapped onto ~20 stories that have
+     *                            none in ADO; it's a field-map / default-value bug.
+     */
+    storyPointsAudit: function(project, areaPath) {
+        var sysIds = [];
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.query();
+        while (e.next()) {
+            if (areaPath) {
+                var area = e.getDisplayValue(this.EXT_AREA_FIELD) || '';
+                if (area.indexOf(areaPath) !== 0)
+                    continue;
+            }
+            sysIds.push(e.getValue('reference_value'));
+        }
+
+        var total = 0, noPts = 0, byStateNoPts = {};
+        for (var i = 0; i < sysIds.length; i += 500) {
+            var chunk = sysIds.slice(i, i + 500);
+            var g = new GlideRecord('rm_story');
+            g.addQuery('sys_id', 'IN', chunk.join(','));
+            g.query();
+            while (g.next()) {
+                total++;
+                if (gs.nil(g.getValue('story_points'))) {
+                    noPts++;
+                    var st = g.getDisplayValue('state') || g.getValue('state');
+                    byStateNoPts[st] = (byStateNoPts[st] || 0) + 1;
+                }
+            }
+        }
+
+        gs.info(this.LOG_PREFIX + 'SN area stories: ' + total +
+            ' | with NO story_points: ' + noPts + ' (ADO reported 83)');
+        gs.info(this.LOG_PREFIX + 'SN no-points by STATE: ' + JSON.stringify(byStateNoPts));
+        return { total: total, noPoints: noPts, byState: byStateNoPts };
+    },
+
     // ---------------------------------------------------------------------
     //  RECONCILIATION
     // ---------------------------------------------------------------------
