@@ -21,11 +21,12 @@ new ADOReconciliationUtil().listProjects();
 // new ADOReconciliationUtil().reconcileGlobal('Epic');
 
 // ---- STEP 4: Cloud Landing Zone (UAT Defects 1 & 5) ----
-// Tester's "Cloud Landing Zone" = this area path under the Landing Zone project.
-// Watch for: MISSING count, "Missing with NO story points" (ties to the 83 vs 63
-// delta in Defect 1), and the STATE/AREA breakdown.
+// 4th arg exactArea=true -> this exact area path ONLY (matches the business
+// intent / the ADO query's "Area Path =" filter). Pass false to include
+// sub-areas (UNDER). Scoped exactly, ADO and SN reconcile (e.g. 57 = 57).
 new ADOReconciliationUtil().reconcile(
     'ITS - Landing Zone Remediation',
     'User Story',
-    'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation'
+    'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation',
+    true
 );

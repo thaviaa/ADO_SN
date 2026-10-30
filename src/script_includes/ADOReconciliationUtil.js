@@ -278,17 +278,20 @@ ADOReconciliationUtil.prototype = {
      *   new ADOReconciliationUtil().reconcile('ITS - ServiceNow', 'User Story');
      *   new ADOReconciliationUtil().reconcile('ITS - ServiceNow', 'User Story', 'ITS - ServiceNow\\Cloud Landing Zone');
      */
-    reconcile: function(project, workItemType, areaPath, logAllMissing) {
+    reconcile: function(project, workItemType, areaPath, exactArea, logAllMissing) {
         var table = this.TYPE_MAP[workItemType];
         if (!table) {
             gs.error(this.LOG_PREFIX + 'No SN table mapped for "' + workItemType + '"');
             return null;
         }
-        var adoIds = this._getAdoIds({ project: project, type: workItemType, areaPath: areaPath });
+        // exactArea=true  -> [System.AreaPath] = areaPath (this area only)
+        // exactArea=false -> [System.AreaPath] UNDER areaPath (area + sub-areas)
+        var adoIds = this._getAdoIds({ project: project, type: workItemType, areaPath: areaPath, exactArea: exactArea });
         // Scope the SN side to the same area/project so BOTH sides match and
         // the orphan count is meaningful.
-        var snSet = this._getSnKeySet(table, project, areaPath);
-        var label = project + (areaPath ? ' [' + areaPath + ']' : '') + ' / ' + workItemType;
+        var snSet = this._getSnKeySet(table, project, areaPath, exactArea);
+        var label = project + (areaPath ? ' [' + areaPath + (exactArea ? ' =' : ' UNDER') + ']' : '') +
+            ' / ' + workItemType;
         return this._compare(adoIds, snSet, label, logAllMissing);
     },
 
@@ -402,7 +405,8 @@ ADOReconciliationUtil.prototype = {
         var wiql = "SELECT [System.Id] FROM workitems WHERE [System.WorkItemType] = '" + safeType + "'";
         if (opts.areaPath) {
             var safeArea = String(opts.areaPath).replace(/'/g, "''");
-            wiql += " AND [System.AreaPath] UNDER '" + safeArea + "'";
+            var op = opts.exactArea ? '=' : 'UNDER';
+            wiql += " AND [System.AreaPath] " + op + " '" + safeArea + "'";
         }
         if (stateFilter) {
             var safeState = String(stateFilter).replace(/'/g, "''");
@@ -474,7 +478,7 @@ ADOReconciliationUtil.prototype = {
      *   project   - ADO project display (filters external_project) or null
      *   areaPath  - ADO area path; matches ado_area display UNDER this path, or null
      */
-    _getSnKeySet: function(refTable, project, areaPath) {
+    _getSnKeySet: function(refTable, project, areaPath, exactArea) {
         var set = {};
         var gr = new GlideRecord(this.EXT_TABLE);
         gr.addQuery(this.EXT_REF_TABLE_FIELD, refTable);
@@ -482,9 +486,12 @@ ADOReconciliationUtil.prototype = {
         while (gr.next()) {
             if (areaPath) {
                 var area = gr.getDisplayValue(this.EXT_AREA_FIELD) || '';
-                // UNDER semantics: the area or any sub-area.
-                if (area.indexOf(areaPath) !== 0)
-                    continue;
+                if (exactArea) {
+                    if (area !== areaPath)
+                        continue; // this exact area only
+                } else if (area.indexOf(areaPath) !== 0) {
+                    continue; // UNDER: the area or any sub-area
+                }
             } else if (project) {
                 var proj = gr.getDisplayValue(this.EXT_PROJECT_FIELD) || '';
                 if (proj !== project)
