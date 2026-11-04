@@ -6,16 +6,38 @@
 - **Expected:** Acceptance Criteria is required; SPM shouldn't save a story without it.
 - **Actual:** SPM allows saving a story without acceptance criteria.
 
-## Fix — UI Policy (form-only, integration-safe)
+## Fix — onSubmit client script (+ UI Policy for the asterisk)
 
-Make `acceptance_criteria` mandatory on the **Story form** with **no condition**.
+`acceptance_criteria` is an **HTML field** (`Type = HTML` in the dictionary), and
+**ServiceNow does not enforce a mandatory on HTML fields at submit** — a mandatory
+UI Policy or dictionary-mandatory shows the red asterisk but the save still goes
+through. Confirmed in testing: even the unconditional mandatory UI Policy let a
+blank-AC story save.
 
-Why a **UI Policy** (not a dictionary-mandatory or a plain Data Policy):
-- UI Policies run **client-side on the form only**. The ADO integration inserts
-  stories **server-side** (GlideRecord), which bypasses UI Policies entirely — so
-  the integration is never blocked, even with an unconditional mandatory.
-- A dictionary-mandatory or an unscoped Data Policy **would** block integration
-  inserts (ADO stories legitimately may have no AC at import). Avoid those.
+So enforcement is done with an **onSubmit client script** that aborts the save
+when the HTML field is empty (after stripping tags/whitespace). The unconditional
+UI Policy is kept only for the mandatory indicator.
+
+Both are **form-only / client-side**, so the ADO integration (server-side
+GlideRecord inserts) is never blocked — a dictionary-mandatory or a Data Policy
+*would* block imports and must be avoided.
+
+### The onSubmit client script (the actual enforcement)
+
+`sys_script_client` on `rm_story`, type **onSubmit**, active, ui_type Desktop:
+
+```javascript
+function onSubmit() {
+    var ac = g_form.getValue('acceptance_criteria');
+    var stripped = (ac || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, '').replace(/\s/g, '');
+    if (stripped === '') {
+        g_form.addErrorMessage('Acceptance Criteria is required. Please enter it before saving.');
+        g_form.showFieldMsg('acceptance_criteria', 'Acceptance Criteria is required.', 'error');
+        return false;
+    }
+    return true;
+}
+```
 
 ### Why unconditional (not scoped to manual stories)
 
@@ -54,7 +76,8 @@ Created in update set `MECK - AT - BUG 269819 - UAT Defect 7`:
 
 | Record | Table | sys_id |
 |--------|-------|--------|
-| UI Policy — *Require Acceptance Criteria on the Story form* | `sys_ui_policy` | `17eef4ae3314935020f072d24d5c7b52` |
+| onSubmit client script — *Defect 7 - Require Acceptance Criteria (onSubmit)* **(enforces)** | `sys_script_client` | `dd9241a63354935020f072d24d5c7b58` |
+| UI Policy — *Require Acceptance Criteria on the Story form* (asterisk only) | `sys_ui_policy` | `17eef4ae3314935020f072d24d5c7b52` |
 | UI Policy Action — `acceptance_criteria` → Mandatory | `sys_ui_policy_action` | `97ee7cae3314935020f072d24d5c7b2a` |
 
 Verified field values: policy `active/on_load/global = true`,
@@ -74,18 +97,18 @@ action `mandatory = true`, `visible/disabled = ignore`, linked to the policy.
 
 ### Test
 1. Create a new Story in SPM (classic form — the surface Anu used), leave
-   Acceptance Criteria blank → **Save blocked** with the mandatory indicator.
-   *Do a fresh form load — ServiceNow caches UI Policies client-side.*
+   Acceptance Criteria blank → **Save blocked** with the error banner
+   *"Acceptance Criteria is required"*. *Do a fresh form load first — ServiceNow
+   caches client scripts.*
 2. Let the integration import a story with no AC → **imports fine** (not blocked;
-   server-side inserts never run the policy).
-3. Edit an existing AC-less synced story → **prompted for AC** (unconditional —
-   accepted trade-off).
+   server-side inserts never run client scripts).
+3. Edit an existing AC-less synced story on the form → **prompted for AC**
+   (enforcement is unconditional — accepted trade-off).
 
 ## Caveat — workspace / quick-create
-Classic UI Policies apply to the standard form. Anu's test case ("Create new
-story") was on the classic Story form, which this covers. The Agile Board
-"Create Story" quick-create (Now Experience / UIB) may not honor a classic UI
-Policy. If AC enforcement is also needed on the board quick-create, the fallback
-is a **Data Policy** with "Use as UI Policy" = true — but validate it does **not**
-fire on integration inserts first (it would block them). Prefer the UI Policy
-unless workspace enforcement is required.
+The onSubmit client script (ui_type Desktop) covers the classic Story form —
+Anu's test case ("Create new story"). The Agile Board "Create Story" quick-create
+(Now Experience / UIB) runs client scripts differently and may not fire this one.
+If AC enforcement is also needed on the board quick-create, add a UI Builder
+client-side validation (or a scoped Data Policy) for that surface — but validate
+it does **not** fire on integration inserts first (it would block imports).

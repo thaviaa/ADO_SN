@@ -47,6 +47,12 @@ touching the fetch or write logic.
   Scrum Story view) evaluates as *false* on the client; with Reverse-if-false on,
   a mandatory action then flips back to **not** mandatory and the policy appears
   to do nothing. Either add the field to the view, or drop the condition. (Defect 7.)
+- **Mandatory is NOT enforced on HTML fields at submit.** A mandatory UI Policy or
+  dictionary-mandatory on an HTML-type field (e.g. `acceptance_criteria` on
+  `rm_story`) shows the red asterisk but **does not block save**. To actually
+  require an HTML field on the form, use an **onSubmit client script** that strips
+  tags/whitespace and `return false` when empty. Keep it client-side (onSubmit) so
+  the server-side integration inserts are not affected. (Defect 7.)
 - **Running a background script without the editor:** `POST /sys.scripts.do` with
   `script=<code>&sysparm_ck=<g_ck>&runscript=Run Script&quota_managed_transaction=on`
   executes server-side in the current session (so the active update set applies
