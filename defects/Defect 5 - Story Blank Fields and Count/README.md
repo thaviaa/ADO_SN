@@ -47,11 +47,25 @@ without it). That APW iteration model is a self-referential tree guarded by
 *"Prevent Overlapping EAP Iterations"*, and it is **empty/unconfigured here**:
 **0 APW iterations, 0 scrum teams**, no cadence tables.
 
-So populating Sprint means **standing up the Agile 2.0 iteration hierarchy**
-(program/release/sprint iterations + teams + cadence, within the overlap rules) —
-a configuration project with business decisions (team structure, cadence), not a
-data sync. Raised as a separate item; needs business input on how sprints/teams
-should be structured (or confirmation that sprint detail stays in ADO).
+So populating Sprint means **standing up the Agile 2.0 stack** —
+teams → cadence → APW iterations → `rm_sprint` — within the overlap rules. Not a
+data sync. ADO already carries the source data: 8 teams (`sn_ado_int_team`), the
+iteration tree with real sprint start/finish dates, and 311 mirrored iteration
+nodes (`sn_ado_int_iteration`).
+
+**Preferred path:** don't script the stack by hand. The OOTB integration already
+mirrors the ADO iterations; the sprint sync almost certainly stalls because
+**Team Integration Settings** aren't configured (ADO teams not mapped to SN Agile
+teams). Configure that first and let the integration generate iterations/sprints.
+*Confirm the exact OOTB behavior in Team Integration Settings before building.*
+
+**Business decisions:**
+- Team mapping — ✅ **1:1** (each of the 8 ADO teams → one SN Agile team), confirmed 11/04/2026.
+- Cadence — ⏳ open: mirror ADO's exact (possibly irregular) sprint dates, or impose
+  a regular cadence? Drives the overlap-rule handling.
+
+Raised as a separate item (needs the cadence decision + the Team Integration
+Settings dig).
 
 ## TODO
 - **Sprint:** separate Agile 2.0 framework setup (above) — business decision.
