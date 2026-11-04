@@ -94,8 +94,32 @@ iteration (~tens of nodes) instead of once per story (~6,088).
   qualifier on the Story form (product/state scoping) so created releases actually
   show in the dropdown for these stories.
 
-## Open items to confirm during build
-- `release` dropdown reference qualifier on `rm_story` (Defect 8 scoping).
-- Whether `rm_sprint` needs `release_team` / dates to be valid & usable (minimal
-  create = `short_description` + `release`; add team from the release's
-  `default_team` when present).
+## Results (Test, 11/04/2026)
+
+Release side **shipped** (`opts = { createReleases:true }`, `linkSprints` left off):
+
+- **4,916** Landing Zone stories linked to their release (`rm_story.release`),
+  across **9 active releases**.
+- Created the 2 ADO releases with no SN record: `Release 8`,
+  `Release 5 ENT_Conv EA` (both `active=true` → now in the Story release dropdown).
+- `release` dropdown qualifier confirmed: `active=true` (so active releases show).
+- One duplicate `Release 8` (a large run outran the browser's 45s eval timeout and
+  the server kept going) was removed; a single record remains. **Lesson: run the
+  commit in capped chunks (≤~800 updates/call) — the browser tool times out at
+  45s though the server transaction keeps running.**
+
+Resolves **Defect 3**, **Defect 8**, and the Release half of **Defect 5**.
+
+## Sprint — deferred (framework not configured)
+
+Sprint is **not** a backfill here. `rm_sprint` hard-requires a valid Agile 2.0
+iteration (`sn_apw_advanced_eap_iteration`) — the *"Check sprint fields correctly
+filled in"* rule rejects name+release+dates+team without it. That APW iteration
+model is a self-referential tree guarded by *"Prevent Overlapping EAP Iterations"*,
+and the instance has **0 APW iterations, 0 scrum teams**, no cadence tables.
+
+Populating Sprint therefore means **standing up the Agile 2.0 iteration hierarchy**
+(program/release/sprint iterations + teams + cadence) — a configuration project
+with business decisions, not a data sync. `syncIterations` keeps `linkSprints` off
+by default for this reason; the sprint branch is retained for an instance where the
+framework is configured. Raised as a separate item.

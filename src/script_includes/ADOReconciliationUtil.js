@@ -530,8 +530,14 @@ ADOReconciliationUtil.prototype = {
         var createReleases = (opts.createReleases === true);
         var onlyLeaf = opts.releaseLeaf || null;      // restrict to one release leaf
         var limit = opts.limit || 0;                  // cap stories processed (0 = all)
+        var doSprints = (opts.linkSprints === true);  // OFF by default: see note below
         var SEP = '\\';
         var self = this;
+        // NOTE (Defect 5): sprint linking requires the Agile 2.0 iteration framework
+        // (sn_apw_advanced_eap_iteration + teams/cadence) to be configured. On an
+        // instance where it is not, rm_sprint inserts are aborted by the
+        // "Check sprint fields correctly filled in" rule, so leave linkSprints off
+        // and only release-link. See docs/iteration-sync-design.md.
 
         gs.info(this.LOG_PREFIX + 'syncIterations START area=' + areaPath +
             (dryRun ? ' [DRY RUN]' : ' [COMMIT]') +
@@ -588,6 +594,7 @@ ADOReconciliationUtil.prototype = {
             var ngr = new GlideRecord('rm_release_scrum');
             ngr.initialize();
             ngr.setValue('short_description', name);
+            ngr.setValue('active', true); // rm_story.release dropdown filters active=true (Defect 8)
             var rec = { id: ngr.insert(), name: name, team: '' };
             (relIndex[leaf] = relIndex[leaf] || []).push(rec);
             counts.releasesCreated++;
@@ -623,7 +630,7 @@ ADOReconciliationUtil.prototype = {
                     var relRec = resolveRelease(res.leaf);
                     if (relRec) {
                         res.releaseId = relRec.id;
-                        if (segs.length >= 3) res.sprintId = resolveSprint(relRec, segs[segs.length - 1].trim());
+                        if (doSprints && segs.length >= 3) res.sprintId = resolveSprint(relRec, segs[segs.length - 1].trim());
                     }
                 }
             }
@@ -660,7 +667,7 @@ ADOReconciliationUtil.prototype = {
             if (r.sprintId && r.sprintId !== '(dry)' && st.getValue('sprint') !== r.sprintId) {
                 st.setValue('sprint', r.sprintId); changed = true;
             }
-            if (changed) { st.update(); counts.storiesLinked++; }
+            if (changed) { st.setWorkflow(false); st.update(); counts.storiesLinked++; }
             if (limit && counts.stories >= limit) break;
         }
 

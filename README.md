@@ -27,12 +27,12 @@ The shared Script Includes live in `src/` (their methods serve several defects).
 |---|--------|--------|
 | [1](defects/Defect%201%20-%20Backlog%20Count%20Mismatch/README.md) | Backlog count mismatch (area drift) | ✅ resolved (Test) |
 | [2](defects/Defect%202%20-%20Epic%20ADO%20Number%20and%20Story%20Linking/README.md) | Epic ADO Number & story linking | ⏳ open |
-| [3](defects/Defect%203%20-%20Releases%20Not%20Listed/README.md) | Releases not listed | ⏳ open |
+| [3](defects/Defect%203%20-%20Releases%20Not%20Listed/README.md) | Releases not listed | ✅ resolved (Test) |
 | [4](defects/Defect%204%20-%20Theme%20ADO%20Number%20and%20Hierarchy/README.md) | Theme ADO Number & hierarchy | ⏳ open |
-| [5](defects/Defect%205%20-%20Story%20Blank%20Fields%20and%20Count/README.md) | Story blank fields & count | ⏳ partial (points, project done) |
+| [5](defects/Defect%205%20-%20Story%20Blank%20Fields%20and%20Count/README.md) | Story blank fields & count | ⏳ partial (points/project/release done; sprint deferred) |
 | [6](defects/Defect%206%20-%20Epics%20Missing%20(DSS-CCS)/README.md) | Epics missing (DSS-CCS) | ⏳ open |
 | [7](defects/Defect%207%20-%20Acceptance%20Criteria%20Required/README.md) | Acceptance Criteria required | ✅ resolved & validated (Test) |
-| [8](defects/Defect%208%20-%20New%20Release%20Not%20in%20Dropdown/README.md) | New release not in dropdown | ⏳ open |
+| [8](defects/Defect%208%20-%20New%20Release%20Not%20in%20Dropdown/README.md) | New release not in dropdown | ✅ resolved (Test) |
 | [9](defects/Defect%209%20-%20FY26%20Epics%20Not%20in%20Project%20Workspace/README.md) | FY26 epics not in Project Workspace | ⏳ open |
 
 Cross-cutting views: [`docs/uat-defects.md`](docs/uat-defects.md) (triage + field

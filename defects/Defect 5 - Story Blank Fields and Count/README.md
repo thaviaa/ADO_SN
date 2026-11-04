@@ -12,8 +12,8 @@
 | Points blank | ✅ not a bug | `StoryPoints → story_points` is correct; `storyPointsCompare` match=6023, lost=0. |
 | **Project blank** | ✅ fixed (Test) | `AreaPath → project` only resolves the area leaf by name at sync time; backfilled 1,256 stories with `backfillProject`. |
 | Theme blank | ⏳ open | No field-map row. |
-| Sprint blank | ⏳ open | No `System.IterationPath → sprint` row; needs iteration sync. |
-| Release blank | ⏳ open | No mapping; needs iteration/release sync (Defect 3/8). |
+| **Release blank** | ✅ fixed (Test) | `syncIterations` parses the ADO iteration path and set `rm_story.release` on 4,916 LZ stories (Defect 3/8). |
+| **Sprint blank** | ⛔ deferred | Needs the **Agile 2.0 iteration framework** stood up first — see below. Not a backfill. |
 | ADO Number / Priority not on form | ⏳ open | Form layout. |
 
 ## Project backfill (done in Test)
@@ -37,8 +37,24 @@ StoryPoints→story_points, Priority→priority, AcceptanceCriteria→acceptance
 
 **Missing rows:** Theme, Sprint (`System.IterationPath`), Release.
 
+## Sprint — deferred (framework not set up)
+
+Sprint is **not** a backfill in this instance. `rm_story.sprint` → `rm_sprint`,
+and `rm_sprint` hard-requires a valid Agile 2.0 iteration
+(`sn_apw_advanced_eap_iteration`), enforced by the *"Check sprint fields correctly
+filled in"* business rule (name + release + dates + team are all insufficient
+without it). That APW iteration model is a self-referential tree guarded by
+*"Prevent Overlapping EAP Iterations"*, and it is **empty/unconfigured here**:
+**0 APW iterations, 0 scrum teams**, no cadence tables.
+
+So populating Sprint means **standing up the Agile 2.0 iteration hierarchy**
+(program/release/sprint iterations + teams + cadence, within the overlap rules) —
+a configuration project with business decisions (team structure, cadence), not a
+data sync. Raised as a separate item; needs business input on how sprints/teams
+should be structured (or confirmation that sprint detail stays in ADO).
+
 ## TODO
-- Add field-map rows / sync for Theme, Sprint, Release (references — need the
-  iteration sync, not just rows).
+- **Sprint:** separate Agile 2.0 framework setup (above) — business decision.
+- Theme (Defect 4) — field-map row + hierarchy source.
 - Add `u_ado_number` and the Priority field to the Story form.
-- Replicate the project backfill in Dev.
+- Replicate the release linking + project backfill in Dev.
