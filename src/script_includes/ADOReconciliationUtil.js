@@ -497,6 +497,178 @@ ADOReconciliationUtil.prototype = {
     },
 
     /**
+     * UAT Defects 3/5/8 - populate Sprint & Release on stories from the ADO
+     * IterationPath. ADO encodes Release + Sprint in the iteration path
+     * (Project\Release\Sprint). The OOTB integration mirrors the iteration nodes
+     * into sn_ado_int_iteration but never creates rm_sprint, links
+     * rm_release_scrum, or sets rm_story.sprint / rm_story.release. This does.
+     *
+     * Per story it reads the ADO iteration from the external-id row's
+     * ado_iteration link, parses the path, resolves the release (existing
+     * rm_release_scrum by name; created when opts.createReleases) and the sprint
+     * (rm_sprint under that release, created if missing), then sets the story's
+     * release and sprint fields.
+     *
+     *   // dry run across the area (default):
+     *   new ADOReconciliationUtil().syncIterations(
+     *     'ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation', { dryRun: true });
+     *   // commit one release at a time, creating missing releases/sprints:
+     *   new ADOReconciliationUtil().syncIterations('ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation',
+     *     { dryRun:false, createReleases:true, releaseLeaf:'Release 1 HHS' });
+     *
+     * @param project   ADO project (used to normalize the release-name prefix)
+     * @param areaPath  SN-tagged area to scope stories (ado_area starts with this)
+     * @param opts      { dryRun:true, createReleases:false, releaseLeaf:null, limit:0 }
+     * @return counts { stories, releasesMatched, releasesCreated, sprintsCreated,
+     *                  storiesLinked, missingRelease, skippedNoIter, misses:{} }
+     */
+    syncIterations: function(project, areaPath, opts) {
+        opts = opts || {};
+        var dryRun = (opts.dryRun !== false);         // default DRY RUN for safety
+        var createReleases = (opts.createReleases === true);
+        var onlyLeaf = opts.releaseLeaf || null;      // restrict to one release leaf
+        var limit = opts.limit || 0;                  // cap stories processed (0 = all)
+        var SEP = '\\';
+        var self = this;
+
+        gs.info(this.LOG_PREFIX + 'syncIterations START area=' + areaPath +
+            (dryRun ? ' [DRY RUN]' : ' [COMMIT]') +
+            (createReleases ? ' +createReleases' : '') +
+            (onlyLeaf ? ' releaseLeaf=' + onlyLeaf : ''));
+
+        var counts = { stories: 0, releasesMatched: 0, releasesCreated: 0,
+            sprintsCreated: 0, storiesLinked: 0, missingRelease: 0,
+            skippedNoIter: 0, misses: {} };
+
+        // ADO "ITS - Landing Zone Remediation" -> SN prefix "ITS Landing Zone Remediation"
+        function norm(s) { return (s || '').replace(/\s*-\s*/g, ' ').replace(/\s+/g, ' ').trim(); }
+        var projNorm = norm(project);
+
+        // 1. iteration map: sys_id -> path
+        var iterPath = {};
+        var it = new GlideRecord('sn_ado_int_iteration');
+        it.query();
+        while (it.next()) { iterPath[it.getUniqueValue()] = it.getValue('path') || ''; }
+
+        // 2. release index: leafKey -> [ {id, name, team} ]
+        var relIndex = {};
+        var rel = new GlideRecord('rm_release_scrum');
+        rel.query();
+        while (rel.next()) {
+            var sd = rel.getValue('short_description') || '';
+            var leaf = sd.split(' - ').pop().trim();
+            (relIndex[leaf] = relIndex[leaf] || []).push(
+                { id: rel.getUniqueValue(), name: sd, team: rel.getValue('default_team') });
+        }
+
+        // 3. sprint index: releaseId||sprintName -> sprintId
+        var sprIndex = {};
+        var spr = new GlideRecord('rm_sprint');
+        spr.query();
+        while (spr.next()) {
+            sprIndex[spr.getValue('release') + '||' + (spr.getValue('short_description') || '').trim()] =
+                spr.getUniqueValue();
+        }
+
+        function resolveRelease(leaf) {
+            var cands = relIndex[leaf] || [];
+            var pick = null;
+            if (cands.length === 1) pick = cands[0];
+            else if (cands.length > 1) {
+                for (var i = 0; i < cands.length; i++)
+                    if (cands[i].name.indexOf(projNorm) === 0) { pick = cands[i]; break; }
+                pick = pick || cands[0];
+            }
+            if (pick) return pick;
+            if (!createReleases) { counts.misses[leaf] = (counts.misses[leaf] || 0) + 1; return null; }
+            var name = (projNorm ? projNorm + ' - ' : '') + leaf;
+            if (dryRun) { counts.releasesCreated++; return { id: '(dry)', name: name, team: '' }; }
+            var ngr = new GlideRecord('rm_release_scrum');
+            ngr.initialize();
+            ngr.setValue('short_description', name);
+            var rec = { id: ngr.insert(), name: name, team: '' };
+            (relIndex[leaf] = relIndex[leaf] || []).push(rec);
+            counts.releasesCreated++;
+            gs.info(self.LOG_PREFIX + 'created release "' + name + '" ' + rec.id);
+            return rec;
+        }
+
+        function resolveSprint(releaseRec, sprintName) {
+            if (!releaseRec || !sprintName) return null;
+            var key = releaseRec.id + '||' + sprintName;
+            if (sprIndex[key]) return sprIndex[key];
+            if (dryRun) { counts.sprintsCreated++; sprIndex[key] = '(dry)'; return '(dry)'; }
+            var sgr = new GlideRecord('rm_sprint');
+            sgr.initialize();
+            sgr.setValue('short_description', sprintName);
+            sgr.setValue('release', releaseRec.id);
+            if (releaseRec.team) sgr.setValue('release_team', releaseRec.team);
+            var sid = sgr.insert();
+            sprIndex[key] = sid;
+            counts.sprintsCreated++;
+            return sid;
+        }
+
+        // per-iteration resolution cache: iterSysId -> {releaseId, sprintId, leaf}
+        var resolved = {};
+        function resolveIter(iterId) {
+            if (resolved.hasOwnProperty(iterId)) return resolved[iterId];
+            var segs = (iterPath[iterId] || '').split(SEP);
+            var res = { releaseId: null, sprintId: null, leaf: null };
+            if (segs.length >= 2) {
+                res.leaf = segs[1].trim();
+                if (!onlyLeaf || onlyLeaf === res.leaf) {
+                    var relRec = resolveRelease(res.leaf);
+                    if (relRec) {
+                        res.releaseId = relRec.id;
+                        if (segs.length >= 3) res.sprintId = resolveSprint(relRec, segs[segs.length - 1].trim());
+                    }
+                }
+            }
+            resolved[iterId] = res;
+            return res;
+        }
+
+        // 4. walk stories in the area, link them
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.addNotNullQuery('ado_iteration');
+        e.query();
+        while (e.next()) {
+            var area = e.getDisplayValue(this.EXT_AREA_FIELD) || '';
+            if (areaPath && area.indexOf(areaPath) !== 0) continue;
+            counts.stories++;
+            var iterId = e.getValue('ado_iteration');
+            var r = resolveIter(iterId);
+            if (onlyLeaf && r.leaf !== onlyLeaf) continue;
+            if (!r.releaseId && !r.sprintId) continue;
+
+            if (dryRun) {
+                if (r.releaseId) counts.releasesMatched++;
+                counts.storiesLinked++;
+                if (limit && counts.stories >= limit) break;
+                continue;
+            }
+            var st = new GlideRecord('rm_story');
+            if (!st.get(e.getValue('reference_value'))) continue;
+            var changed = false;
+            if (r.releaseId && r.releaseId !== '(dry)' && st.getValue('release') !== r.releaseId) {
+                st.setValue('release', r.releaseId); changed = true; counts.releasesMatched++;
+            }
+            if (r.sprintId && r.sprintId !== '(dry)' && st.getValue('sprint') !== r.sprintId) {
+                st.setValue('sprint', r.sprintId); changed = true;
+            }
+            if (changed) { st.update(); counts.storiesLinked++; }
+            if (limit && counts.stories >= limit) break;
+        }
+
+        gs.info(this.LOG_PREFIX + 'syncIterations DONE ' + JSON.stringify(counts));
+        return counts;
+    },
+
+    /**
      * UAT Defect 1 - area drift sweep. The ADO service hooks are area-filtered
      * (DevOps-controlled), so when a story moves OUT of the area ADO never sends
      * the update and SN keeps a stale ado_area - inflating the area's count.
