@@ -475,6 +475,28 @@ ADOReconciliationUtil.prototype = {
     },
 
     /**
+     * One-call reconciliation sweep for a scheduled job. Runs the area-drift
+     * resync (clearProject) and the deleted-orphan cleanup (delete) for an area,
+     * and logs a combined summary. Point a weekly Scheduled Script Execution at:
+     *
+     *   new ADOReconciliationUtil().scheduledSweep(
+     *     'ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation');
+     *
+     * Both actions are idempotent-safe to re-run. Pass dryRun=true to preview.
+     */
+    scheduledSweep: function(project, areaPath, dryRun) {
+        var commit = (dryRun !== true);
+        gs.info(this.LOG_PREFIX + 'Scheduled sweep START (' + areaPath + ')' +
+            (commit ? '' : ' [DRY RUN]'));
+        var drift = this.resyncArea(project, areaPath, 'clearProject', !commit);
+        var deletes = this.handleDeleted(project, areaPath, 'delete', !commit);
+        gs.info(this.LOG_PREFIX + 'Scheduled sweep DONE. drift=' + JSON.stringify(drift) +
+            ' deletes=' + JSON.stringify(deletes));
+        return { drift: drift, deletes: deletes };
+    },
+
+    /**
      * UAT Defect 1 - area drift sweep. The ADO service hooks are area-filtered
      * (DevOps-controlled), so when a story moves OUT of the area ADO never sends
      * the update and SN keeps a stale ado_area - inflating the area's count.
