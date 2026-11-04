@@ -260,6 +260,57 @@ ADOReconciliationUtil.prototype = {
     },
 
     /**
+     * UAT Defect 1 validation. Takes every SN no-points story in the exact area
+     * and splits it into "live in ADO" vs "deleted in ADO" (present in the ADO
+     * Recycle Bin). If SN no-points = ADO-live + deleted-in-ADO, the count
+     * mismatch is fully explained by ADO deletions that didn't propagate to SN.
+     *
+     *   new ADOReconciliationUtil().validateNoPoints(
+     *     'ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation');
+     *
+     * Expect: live ~= the ADO query count (e.g. 57); deleted-in-ADO = the gap.
+     */
+    validateNoPoints: function(project, areaPath) {
+        var recycle = this._getRecycleBinIds(project);
+
+        var refToExt = {}, refs = [];
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.query();
+        while (e.next()) {
+            if ((e.getDisplayValue(this.EXT_AREA_FIELD) || '') !== areaPath)
+                continue; // exact area only
+            refToExt[e.getValue('reference_value')] = e.getValue(this.EXT_ID_FIELD);
+            refs.push(e.getValue('reference_value'));
+        }
+
+        var total = 0, live = 0, deleted = [];
+        for (var i = 0; i < refs.length; i += 500) {
+            var g = new GlideRecord('rm_story');
+            g.addQuery('sys_id', 'IN', refs.slice(i, i + 500).join(','));
+            g.addNullQuery('story_points'); // no story points
+            g.query();
+            while (g.next()) {
+                total++;
+                var ext = refToExt[g.getUniqueValue()];
+                if (recycle[ext])
+                    deleted.push(ext + '=' + g.getValue('number'));
+                else
+                    live++;
+            }
+        }
+
+        gs.info(this.LOG_PREFIX + 'validateNoPoints (' + areaPath + '):');
+        gs.info(this.LOG_PREFIX + '  SN no-points=' + total +
+            ' | live (not deleted in ADO)=' + live +
+            ' | deleted-in-ADO (orphans)=' + deleted.length);
+        if (deleted.length)
+            gs.info(this.LOG_PREFIX + '  deleted-in-ADO no-points: ' + deleted.join(', '));
+        return { snNoPoints: total, live: live, deletedInAdo: deleted.length };
+    },
+
+    /**
      * UAT Defect 5 - backfill the Project reference on stories that imported
      * without it. The field map (System.AreaPath -> project) only resolves the
      * area-leaf to a pm_project at sync time, so stories synced before the
