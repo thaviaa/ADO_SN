@@ -2,7 +2,7 @@
 
 - **ADO work item:** 269819
 - **Tester:** Anu Urhekar · opened 10/26/2026
-- **Status:** 🔧 FIX SPEC READY
+- **Status:** ✅ IMPLEMENTED (Test) — 11/04/2026, update set `MECK - AT - BUG 269819 - UAT Defect 7`
 - **Expected:** Acceptance Criteria is required; SPM shouldn't save a story without it.
 - **Actual:** SPM allows saving a story without acceptance criteria.
 
@@ -42,6 +42,31 @@ and users editing an AC-less ADO story aren't forced to add AC.
 - **Mandatory:** `True`
 - **Visible:** `Leave alone`
 - **Read only:** `Leave alone`
+
+## Implemented in Test (11/04/2026)
+
+Created in update set `MECK - AT - BUG 269819 - UAT Defect 7`:
+
+| Record | Table | sys_id |
+|--------|-------|--------|
+| UI Policy — *Require Acceptance Criteria on manually-created Stories* | `sys_ui_policy` | `17eef4ae3314935020f072d24d5c7b52` |
+| UI Policy Action — `acceptance_criteria` → Mandatory | `sys_ui_policy_action` | `97ee7cae3314935020f072d24d5c7b2a` |
+
+Verified field values: policy `active/on_load/reverse_if_false/global = true`,
+`conditions = external_identifierISEMPTY`, `table = rm_story`; action
+`mandatory = true`, `visible/disabled = ignore`, linked to the policy.
+
+Field chosen for the condition (`external_identifier`) confirmed against live
+data: 9,956 of 10,385 stories have it populated (synced), 429 empty (manual) —
+a clean integration-vs-manual split.
+
+> **Gotcha (for whoever promotes this):** `sys_ui_policy_action.ui_policy` is
+> **read-only to the Table/REST API** — a REST insert/PATCH returns success but
+> silently drops the value, orphaning the action. It must be set by the form's
+> related-list (which supplies the parent context) or by a **server-side
+> GlideRecord** (`a.ui_policy = <policyId>; a.update();`), which bypasses the
+> dictionary read-only. This is why the action is created, then linked in a
+> second server-side step.
 
 ### Test
 1. Create a new Story in SPM, leave Acceptance Criteria blank → **Save should be
