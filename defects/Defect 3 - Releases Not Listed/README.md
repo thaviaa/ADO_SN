@@ -2,7 +2,7 @@
 
 - **ADO work item:** 269817
 - **Tester:** Betsy Kinney · opened 10/23/2026
-- **Status:** ✅ RESOLVED (Test) — 11/04/2026, update set `MECK - AT - 269817 269818 269820 - UAT DEFECT 3_5_8`
+- **Status:** ✅ RESOLVED & VALIDATED (Test) — 11/04/2026, update set `MECK - AT - 269817 269818 269820 - UAT DEFECT 3_5_8`
 - **Expected:** Stories in a release are listed under that Release in SN.
 - **Actual:** No stories listed under the release.
 
