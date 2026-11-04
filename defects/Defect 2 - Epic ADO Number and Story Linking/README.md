@@ -25,6 +25,27 @@ Confirmed in Test:
 - Parent chain read live from ADO: Story `System.Parent` = Feature,
   Feature `System.Parent` = Epic (verified: 239467 → 238278 → 236403).
 
+### Field map bug (confirmed from the rm_story Table Map, 11/04/2026)
+
+The `rm_story` table map (`ServiceNow-Template-1.0`, Integration Type Agile) has
+the row **`System.Parent → epic`**. A User Story's `System.Parent` is its
+**Feature** (= Theme), not its Epic — so this row is wrong. It mostly fails to
+resolve (a Feature can't fill an `rm_epic` reference), which is why so few stories
+have an epic, and it will **re-apply on every sync and clobber the backfilled
+`epic`**. Fix for ongoing sync (a field map is one hop; epic is two hops):
+1. Change `System.Parent → epic` to **`System.Parent → theme`** (Feature→Theme).
+2. Epic (the Feature's parent) needs a **business rule** on `rm_story`, not a field
+   map — set `epic` from the Theme's parent Epic. (The one-time backfill below
+   handles existing stories.)
+
+**Change the field-map row before/right after running the backfill**, or the next
+sync can undo the epic links.
+
+The rest of the map is correct: `System.Id → u_ado_number`,
+`Microsoft.VSTS.Common.Priority → priority`, `System.AreaPath → project`, etc.
+
+### Backfill
+
 `ADOReconciliationUtil.syncHierarchy(areaPath)` walks that chain and sets
 `rm_story.theme` (Feature→`scrum_theme`) and `rm_story.epic` (Feature's
 parent Epic→`rm_epic`). `stampAdoNumbers()` fills `u_ado_number` on the synced
