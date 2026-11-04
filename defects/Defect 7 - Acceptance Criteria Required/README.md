@@ -2,7 +2,7 @@
 
 - **ADO work item:** 269819
 - **Tester:** Anu Urhekar · opened 10/26/2026
-- **Status:** ✅ IMPLEMENTED (Test) — 11/04/2026, update set `MECK - AT - BUG 269819 - UAT Defect 7`
+- **Status:** ✅ RESOLVED & VALIDATED (Test) — 11/04/2026 on the classic Story form; update set `MECK - AT - BUG 269819 - UAT Defect 7`
 - **Expected:** Acceptance Criteria is required; SPM shouldn't save a story without it.
 - **Actual:** SPM allows saving a story without acceptance criteria.
 
