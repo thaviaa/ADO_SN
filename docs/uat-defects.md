@@ -116,3 +116,20 @@ orphans and inflate counts (observed: SN 68 vs ADO 65 = 3 orphans; e.g. ADO
 Fixes are developed in this repo. Instance-only configuration (form layouts, field
 maps, choice maps, project discovery) is specified here with step-by-step detail and
 applied in the ServiceNow instance.
+
+## Processing-side findings (read from ADOWebhookEventProcessorUtil in Test)
+
+Confirmed by reading the OOTB `sn_agile_ado_int.ADOWebhookEventProcessorUtil`:
+
+- **Deletes are handled OOTB.** `processWorkItemDeleteEvent()` deletes the SN
+  record and its external-id link row on a `workitem.deleted` event. So the
+  real-time delete fix needs only the DevOps `workitem.deleted` hook + a decision
+  row routing it to this handler — no custom code. `deleteByAdoId` is a backup;
+  `handleDeleted` remains for the existing backlog.
+- **`ado_area` IS updated on every processed update.** `_handleNormalizedObj`
+  re-resolves `System.AreaPath` -> `sn_ado_int_area` and writes `ado_area` on the
+  external-id record. So area drift is a delivery gap (area-filtered hook never
+  sends move-out events), not a processing bug. `resyncArea` is the compensating
+  SN-side control.
+- Processor also re-resolves iteration/sprint and honors allowed-states
+  (`_checkImportCriteria`) and a cyclic-change guard (`checkIfPayloadIsCyclic`).
