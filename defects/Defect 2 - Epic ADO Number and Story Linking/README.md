@@ -17,11 +17,21 @@ Two parts:
    either resolves wrong or stays empty. Needs the hierarchy walked
    Story → Feature → Epic (or the parent mapped to the right level).
 
-## Plan
-- Add `u_ado_number` to the `rm_epic` form (and a business rule to populate it
-  from the external-id record, like the Story project backfill pattern).
-- Review the Story/Feature table maps; confirm whether Features are imported and
-  how `System.Parent` resolves. Build the Story→Feature→Epic linking.
+## Fix (build ready — `syncHierarchy` + `stampAdoNumbers`)
+
+Confirmed in Test:
+- Epics **are** synced as `rm_epic` (191 external-id rows); Features as
+  `scrum_theme` (430). Only the **parent link** is missing in SN.
+- Parent chain read live from ADO: Story `System.Parent` = Feature,
+  Feature `System.Parent` = Epic (verified: 239467 → 238278 → 236403).
+
+`ADOReconciliationUtil.syncHierarchy(areaPath)` walks that chain and sets
+`rm_story.theme` (Feature→`scrum_theme`) and `rm_story.epic` (Feature's
+parent Epic→`rm_epic`). `stampAdoNumbers()` fills `u_ado_number` on the synced
+themes/epics. See [`../../docs/iteration-sync-design.md`] sibling and the Script
+Include. Remaining config: add `u_ado_number` to the `rm_epic` form (Defect 2)
+and `scrum_theme` form (Defect 4) via Configure → Form Layout (update set
+`MECK - AT - 269821 269823 - UAT DEFECT 2_4`).
 
 ## Notes
 - Related to Defect 4 (Theme hierarchy) and Defect 5 (Parent→epic suspect map).

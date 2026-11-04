@@ -676,6 +676,146 @@ ADOReconciliationUtil.prototype = {
     },
 
     /**
+     * UAT Defects 2/4 - link stories to Theme (ADO Feature) + Epic (ADO Epic).
+     * Mapping (business-confirmed): ADO Feature -> scrum_theme, ADO Epic -> rm_epic.
+     * Chain: Story -> parent Feature (Theme) -> parent Epic (Epic). Features/Epics
+     * are already synced (external-id rows to scrum_theme / rm_epic); only the ADO
+     * parent link is missing in SN, so it is read live from ADO (System.Parent).
+     *
+     *   // dry run (no writes):
+     *   new ADOReconciliationUtil().syncHierarchy('ITS - Landing Zone Remediation', {dryRun:true});
+     *   // commit everything in one run (fine from Scripts - Background):
+     *   new ADOReconciliationUtil().syncHierarchy('ITS - Landing Zone Remediation', {dryRun:false});
+     *   // or chunk with offset/limit (needed only under a UI/automation timeout):
+     *   new ADOReconciliationUtil().syncHierarchy('ITS - Landing Zone Remediation', {dryRun:false, offset:0, limit:1000});
+     *
+     * @param areaPath  SN-tagged area scope (ado_area starts with this)
+     * @param opts      { dryRun:true, offset:0, limit:0 (0=all from offset) }
+     * @return { total, processed, nextOffset, counts }
+     */
+    syncHierarchy: function(areaPath, opts) {
+        opts = opts || {};
+        var dryRun = (opts.dryRun !== false);
+        var offset = opts.offset || 0;
+        var limit = opts.limit || 0;
+        var token = this.util._getAccessToken(false);
+        var org = this.util.ADO_ORG_URL;
+        var APIV = this.API_VERSION;
+        var cfg = this;
+
+        gs.info(this.LOG_PREFIX + 'syncHierarchy START area=' + areaPath +
+            ' offset=' + offset + ' limit=' + limit + (dryRun ? ' [DRY RUN]' : ' [COMMIT]'));
+
+        // ADO workitemsbatch: ids -> { adoId: parentAdoId|null }
+        function batchParents(ids) {
+            var map = {};
+            for (var i = 0; i < ids.length; i += 200) {
+                var chunk = ids.slice(i, i + 200);
+                var r = new sn_ws.RESTMessageV2();
+                r.setHttpMethod('POST');
+                r.setEndpoint(org + '/_apis/wit/workitemsbatch?api-version=' + APIV);
+                r.setRequestHeader('Authorization', 'Bearer ' + token);
+                r.setRequestHeader('Content-Type', 'application/json');
+                r.setRequestBody(JSON.stringify({ ids: chunk, fields: ['System.Id', 'System.Parent'], errorPolicy: 'omit' }));
+                var resp = r.execute();
+                if (resp.getStatusCode() == 200) {
+                    var vals = JSON.parse(resp.getBody()).value || [];
+                    for (var v = 0; v < vals.length; v++) {
+                        var f = vals[v].fields || {};
+                        if (f['System.Id'] != null)
+                            map[f['System.Id']] = (f['System.Parent'] != null ? f['System.Parent'] : null);
+                    }
+                }
+            }
+            return map;
+        }
+
+        // SN lookups: featureAdo -> scrum_theme sysId ; epicAdo -> rm_epic sysId
+        function loadExt(refTable, into) {
+            var e = new GlideRecord(cfg.EXT_TABLE);
+            e.addQuery('reference_table', refTable);
+            e.query();
+            while (e.next()) into[e.getValue('external_id')] = e.getValue('reference_value');
+        }
+        var themeByAdo = {}, epicByAdo = {};
+        loadExt('scrum_theme', themeByAdo);
+        loadExt('rm_epic', epicByAdo);
+
+        // Feature -> Epic (ADO parent of each synced Feature), built once
+        var featureEpic = batchParents(Object.keys(themeByAdo));
+
+        // ordered pending list of stories in the area
+        var pending = [];
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.orderBy('external_id');
+        e.query();
+        while (e.next()) {
+            var area = e.getDisplayValue(this.EXT_AREA_FIELD) || '';
+            if (areaPath && area.indexOf(areaPath) !== 0) continue;
+            pending.push({ adoId: e.getValue('external_id'), sysId: e.getValue('reference_value') });
+        }
+        var total = pending.length;
+        var end = limit ? Math.min(offset + limit, total) : total;
+        var slice = pending.slice(offset, end);
+
+        var counts = { stories: 0, linked: 0, themeSet: 0, epicSet: 0, noFeature: 0, themeMissing: 0, epicMissing: 0 };
+        for (var b = 0; b < slice.length; b += 200) {
+            var batch = slice.slice(b, b + 200);
+            var parentMap = batchParents(batch.map(function (x) { return x.adoId; }));
+            for (var s = 0; s < batch.length; s++) {
+                counts.stories++;
+                var featureAdo = parentMap[batch[s].adoId];
+                if (!featureAdo) { counts.noFeature++; continue; }
+                var themeId = themeByAdo[featureAdo];
+                var epicAdo = featureEpic[featureAdo];
+                var epicId = epicAdo ? epicByAdo[epicAdo] : null;
+                if (!themeId) counts.themeMissing++;
+                if (!epicId) counts.epicMissing++;
+                if (!themeId && !epicId) continue;
+                if (dryRun) { if (themeId) counts.themeSet++; if (epicId) counts.epicSet++; counts.linked++; continue; }
+                var st = new GlideRecord('rm_story');
+                if (!st.get(batch[s].sysId)) continue;
+                var ch = false;
+                if (themeId && st.getValue('theme') !== themeId) { st.setValue('theme', themeId); ch = true; counts.themeSet++; }
+                if (epicId && st.getValue('epic') !== epicId) { st.setValue('epic', epicId); ch = true; counts.epicSet++; }
+                if (ch) { st.setWorkflow(false); st.update(); counts.linked++; }
+            }
+        }
+        var result = { total: total, processed: slice.length, nextOffset: end, counts: counts };
+        gs.info(this.LOG_PREFIX + 'syncHierarchy DONE ' + JSON.stringify(result));
+        return result;
+    },
+
+    /**
+     * UAT Defects 2/4 - populate u_ado_number on synced Themes (scrum_theme) and
+     * Epics (rm_epic) from their external-id number. Run once.
+     */
+    stampAdoNumbers: function() {
+        var out = {};
+        var tables = ['scrum_theme', 'rm_epic'];
+        for (var p = 0; p < tables.length; p++) {
+            var table = tables[p], n = 0;
+            var e = new GlideRecord(this.EXT_TABLE);
+            e.addQuery('reference_table', table);
+            e.query();
+            while (e.next()) {
+                var gr = new GlideRecord(table);
+                if (gr.get(e.getValue('reference_value')) &&
+                    gr.getValue('u_ado_number') !== e.getValue('external_id')) {
+                    gr.setValue('u_ado_number', e.getValue('external_id'));
+                    gr.setWorkflow(false);
+                    gr.update();
+                    n++;
+                }
+            }
+            out[table] = n;
+        }
+        gs.info(this.LOG_PREFIX + 'stampAdoNumbers DONE ' + JSON.stringify(out));
+        return out;
+    },
+
+    /**
      * UAT Defect 1 - area drift sweep. The ADO service hooks are area-filtered
      * (DevOps-controlled), so when a story moves OUT of the area ADO never sends
      * the update and SN keeps a stale ado_area - inflating the area's count.
