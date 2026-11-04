@@ -42,6 +42,11 @@ touching the fetch or write logic.
   orphaned action. Set it from the UI Policy form's related list (supplies the
   parent context) or via server-side GlideRecord (`a.ui_policy = id; a.update();`),
   which bypasses the dictionary read-only. (Defect 7.)
+- **UI Policy condition on an off-form field silently misfires.** A condition that
+  references a field **not on the form view** (e.g. `external_identifier` on the
+  Scrum Story view) evaluates as *false* on the client; with Reverse-if-false on,
+  a mandatory action then flips back to **not** mandatory and the policy appears
+  to do nothing. Either add the field to the view, or drop the condition. (Defect 7.)
 - **Running a background script without the editor:** `POST /sys.scripts.do` with
   `script=<code>&sysparm_ck=<g_ck>&runscript=Run Script&quota_managed_transaction=on`
   executes server-side in the current session (so the active update set applies
