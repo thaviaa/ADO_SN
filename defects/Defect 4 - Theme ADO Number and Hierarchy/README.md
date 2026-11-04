@@ -26,11 +26,13 @@ SN:    Theme →  Epic     →  Story
 ```
 
 - ADO User Story → SN Story ✓
-- ADO Feature → SN Theme ✓ (confirmed)
-- ADO Epic → SN Epic — **pending confirm** (if yes, the Feature's parent Epic sets
-  the Story's `epic`; ties this to Defect 2).
+- ADO Feature → SN Theme (`scrum_theme`) ✓ (confirmed 11/04/2026)
+- ADO Epic → SN Epic (`rm_epic`) ✓ (confirmed 11/04/2026) — the Feature's parent
+  Epic sets the Story's `epic`; ties this to Defect 2.
 
-## Plan (once the Epic mapping is confirmed)
+**Full mapping is now settled — ready to build (Defects 2 + 4 as one pass).**
+
+## Plan
 - For each Story, walk the ADO parent chain: parent **Feature** → `scrum_theme`
   (Theme), that Feature's parent **Epic** → `rm_epic` (Epic).
 - Create/match the `scrum_theme` records, populate `u_ado_number` on them from the
