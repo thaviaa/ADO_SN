@@ -474,6 +474,100 @@ ADOReconciliationUtil.prototype = {
         return true;
     },
 
+    /**
+     * UAT Defect 1 - area drift sweep. The ADO service hooks are area-filtered
+     * (DevOps-controlled), so when a story moves OUT of the area ADO never sends
+     * the update and SN keeps a stale ado_area - inflating the area's count.
+     * This re-reads each SN story's CURRENT ADO System.AreaPath and finds the
+     * ones that have drifted out of the area (optionally clears their project so
+     * they drop out of the area's count, or deletes them).
+     *
+     *   // report only (default):
+     *   new ADOReconciliationUtil().resyncArea(
+     *     'ITS - Landing Zone Remediation',
+     *     'ITS - Landing Zone Remediation\\ITPMO - Cloud Landing Zone Remediation');
+     *   // clear project on drifted stories (dry run first!):
+     *   new ADOReconciliationUtil().resyncArea(..., ..., 'clearProject', true);
+     *
+     * @param project   ADO project (unused today; kept for signature parity)
+     * @param areaPath  the SN-tagged area to audit (stories with ado_area under it)
+     * @param action    'report' (default) | 'clearProject' | 'delete'
+     * @param dryRun    true = log only
+     */
+    resyncArea: function(project, areaPath, action, dryRun) {
+        action = action || 'report';
+
+        var items = [];
+        var e = new GlideRecord(this.EXT_TABLE);
+        e.addQuery(this.EXT_REF_TABLE_FIELD, 'rm_story');
+        e.query();
+        while (e.next()) {
+            if ((e.getDisplayValue(this.EXT_AREA_FIELD) || '').indexOf(areaPath) !== 0)
+                continue;
+            items.push({ ext: e.getValue(this.EXT_ID_FIELD), ref: e.getValue('reference_value') });
+        }
+
+        // Current ADO area for each, batched (errorPolicy omit so a deleted id
+        // doesn't fail the batch).
+        var token = this.util._getAccessToken(true);
+        var adoArea = {}, returned = {};
+        for (var i = 0; i < items.length; i += 200) {
+            var ids = [];
+            for (var c = i; c < Math.min(i + 200, items.length); c++)
+                ids.push(parseInt(items[c].ext, 10));
+            var r = new sn_ws.RESTMessageV2();
+            r.setHttpMethod('POST');
+            r.setEndpoint(this.ADO_ORG_URL + '/_apis/wit/workitemsbatch?api-version=' + this.API_VERSION);
+            r.setRequestHeader('Authorization', 'Bearer ' + token);
+            r.setRequestHeader('Content-Type', 'application/json');
+            r.setRequestBody(JSON.stringify({ ids: ids, fields: ['System.AreaPath'], errorPolicy: 'omit' }));
+            var resp = r.execute();
+            if (resp.getStatusCode() != 200) {
+                gs.warn(this.LOG_PREFIX + 'resyncArea batch ' + resp.getStatusCode() + ' at ' + i);
+                continue;
+            }
+            var val = (JSON.parse(resp.getBody() || '{}').value) || [];
+            for (var v = 0; v < val.length; v++) {
+                var vid = String(val[v].id);
+                returned[vid] = true;
+                adoArea[vid] = (val[v].fields || {})['System.AreaPath'] || '';
+            }
+        }
+
+        var result = { scanned: items.length, drifted: 0, acted: 0, deletedInAdo: 0 };
+        var driftSample = [];
+        for (var k = 0; k < items.length; k++) {
+            var it = items[k];
+            if (!returned[it.ext]) { result.deletedInAdo++; continue; }
+            var cur = adoArea[it.ext] || '';
+            // Drifted = current ADO area is no longer at or under the audited area.
+            if (cur.indexOf(areaPath) === 0)
+                continue;
+            result.drifted++;
+            if (driftSample.length < 40) driftSample.push(it.ext + ' -> "' + cur + '"');
+
+            if ((action === 'clearProject' || action === 'delete') && !dryRun) {
+                var s = new GlideRecord('rm_story');
+                if (!s.get(it.ref)) continue;
+                s.setWorkflow(false);
+                s.autoSysFields(false);
+                if (action === 'delete') {
+                    s.deleteRecord();
+                } else {
+                    s.setValue('project', '');
+                    s.update();
+                }
+                result.acted++;
+            }
+        }
+
+        gs.info(this.LOG_PREFIX + 'resyncArea (' + areaPath + ', action=' + action +
+            (dryRun ? ', DRY RUN' : '') + '): ' + JSON.stringify(result));
+        if (driftSample.length)
+            gs.info(this.LOG_PREFIX + 'drifted (moved out of area): ' + driftSample.join(' | '));
+        return result;
+    },
+
     /** Read the ADO project Recycle Bin; returns { deletedWorkItemId: true }. */
     _getRecycleBinIds: function(project) {
         var token = this.util._getAccessToken(true);
