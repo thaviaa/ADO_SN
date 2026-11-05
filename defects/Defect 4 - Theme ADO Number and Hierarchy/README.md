@@ -2,17 +2,54 @@
 
 - **ADO work item:** 269823
 - **Tester:** Betsy Kinney · opened 10/23/2026
-- **Status:** ⏳ MOSTLY DONE (Test) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
+- **Status:** ⏳ IN PROGRESS (Test) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
+- **Expected (Betsy's test):** open theme THME0011011 (Cloud Landing Zone) and see
+  ADO Number populated, the **epic related to the theme** shown, and the stories
+  shown.
+- **Actual:** No ADO number, no epic/stories — because she opened a **duplicate
+  (orphan) theme** (see root cause below).
 
-**Done:** `u_ado_number` stamped on all 431 themes; `rm_story.theme` linked
-area-wide (= 5,461); stories now appear under their Theme; Theme form already
-shows ADO Number. **Open:** *epics shown under the Theme* — blocked by the
-hierarchy inversion (ADO Epic is the PARENT of the Feature, but SN Theme is the
-parent of the Epic), so an Epic doesn't nest under a Theme and one Epic maps to
-many Themes. Needs a business decision on whether/how to represent it.
-- **Expected:** Theme ADO number populated; related epics and stories shown on
-  the theme page.
-- **Actual:** No ADO number; no epics/stories linked to the theme.
+**Done:** `u_ado_number` stamped on the synced themes; `rm_story.theme` linked
+area-wide (= 5,461); stories appear under the synced Theme; Theme form shows ADO
+Number; **theme duplication cleaned up** (see below). **Open:** the *parent Epic*
+on the Theme (the SN-model link, below) + the Theme-form Parent-Epic field.
+
+## Hierarchy model (business-confirmed)
+
+SN model is **Epic (parent) → Theme (child) → Story (subchild)** — which *matches*
+ADO (Epic → Feature → Story, with Feature = Theme). No inversion; it only differs
+from ServiceNow's OOTB SPM default (Theme → Epic). So each **Theme has one parent
+Epic** (its Feature's parent); each **Epic groups many Themes** (up to 72).
+
+- ADO Epic → SN `rm_epic` · ADO Feature → SN `scrum_theme` · ADO Story → `rm_story`
+- Story carries both `theme` (its Feature) and `epic` (the grandparent Epic) — done.
+- **To build:** `scrum_theme` → parent `rm_epic` link (SN's native `rm_epic.theme`
+  is the reverse direction, so add a `u_parent_epic` reference on the Theme),
+  backfill it from the Feature's parent Epic, show it on the Theme form, + a BR.
+
+## Root cause — theme duplication (11/05/2026)
+
+Betsy's THME0011011 was an **orphan duplicate**. There were **two generations of
+themes** stacked on the same number range:
+- **Old manual set** (~430, created May 2026 by a consultant, `scott.parry@ondarowave.com`)
+  — no ADO numbers.
+- **Synced set** (created Oct 12 2026 by `system`, the integration) — with ADO numbers.
+
+The `scrum_theme` number counter (`sys_number`, prefix THME) sat at **11001**,
+*behind* the max already in use, so the Oct set re-issued the same THME numbers →
+**381 duplicate numbers / 762 records**, and a full duplicate set of themes.
+Example: THME0011229 = "OTC - TaxRev" (May, no ADO) **and** "SUS…" (Oct, ADO 238256).
+
+### Cleanup done (Test)
+- **Deleted 324 orphan themes** — those with a synced twin (same name + ADO#), zero
+  stories, zero epic references. Safe: none had children.
+- **Advanced the THME number counter 11001 → 11440** (past the max 11439) so new
+  themes get fresh numbers and never collide again.
+- Theme count 817 → **493**; duplicate numbers 381 → **59**; Betsy's SUS theme is now
+  a single record (THME0011229, ADO 238256, 8 stories).
+- **Left alone:** 62 un-synced manual themes (no ADO twin). The 59 residual number
+  collisions are old no-twin manual themes sharing a number with a synced theme —
+  renumber those if a fully clean number set is wanted (pending decision).
 
 ## Likely root cause
 
