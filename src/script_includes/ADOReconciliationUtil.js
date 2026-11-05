@@ -741,9 +741,6 @@ ADOReconciliationUtil.prototype = {
         loadExt('scrum_theme', themeByAdo);
         loadExt('rm_epic', epicByAdo);
 
-        // Feature -> Epic (ADO parent of each synced Feature), built once
-        var featureEpic = batchParents(Object.keys(themeByAdo));
-
         // ordered pending list of stories in the area
         var pending = [];
         var e = new GlideRecord(this.EXT_TABLE);
@@ -763,13 +760,25 @@ ADOReconciliationUtil.prototype = {
         for (var b = 0; b < slice.length; b += 200) {
             var batch = slice.slice(b, b + 200);
             var parentMap = batchParents(batch.map(function (x) { return x.adoId; }));
+            // Resolve each distinct story-parent's own parent (grandparent) in ADO,
+            // so the epic links even when the Feature isn't synced as a theme
+            // (Defect 9: FY26 Features weren't imported, but the grandparent Epics were).
+            // Skip parents that are themselves synced Epics - those ARE the epic.
+            var grandIds = [], seenParent = {};
+            for (var pi = 0; pi < batch.length; pi++) {
+                var fa0 = parentMap[batch[pi].adoId];
+                if (fa0 && !seenParent[fa0] && !epicByAdo[fa0]) { seenParent[fa0] = true; grandIds.push(fa0); }
+            }
+            var grand = grandIds.length ? batchParents(grandIds) : {};
             for (var s = 0; s < batch.length; s++) {
                 counts.stories++;
                 var featureAdo = parentMap[batch[s].adoId];
                 if (!featureAdo) { counts.noFeature++; continue; }
                 var themeId = themeByAdo[featureAdo];
-                var epicAdo = featureEpic[featureAdo];
-                var epicId = epicAdo ? epicByAdo[epicAdo] : null;
+                // Epic: the story's parent may itself be a synced Epic; otherwise use
+                // the parent's parent (grandparent) Epic. Independent of theme sync.
+                var epicId = epicByAdo[featureAdo] ||
+                    (grand[featureAdo] ? epicByAdo[grand[featureAdo]] : null);
                 if (!themeId) counts.themeMissing++;
                 if (!epicId) counts.epicMissing++;
                 if (!themeId && !epicId) continue;

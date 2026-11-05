@@ -18,7 +18,7 @@ Legend for **Fix type**:
 | 6 | 269822 | Epics from ADO project "DSS – CCS Provider System" not in SPM | Project/area not discovered or not routed to a table map | config | open |
 | 7 | 269819 | New Story can be saved without Acceptance Criteria | `acceptance_criteria` not mandatory | code (quick win) | open |
 | 8 | 269820 | New ADO "Release 8" not in SN Release dropdown | ADO releases/iterations not synced into SN | code + config | open |
-| 9 | 269824 | FY26 Epics not shown in Project Workspace Epics tab | Same family as #6 — epics for a project not imported | config | open |
+| 9 | 269824 | FY26 Epics not shown in Project Workspace Epics tab | **RESOLVED (Test).** Tab = epics of the project's stories (`rm_story.epic`). FY26 stories had no epic because the Defect 2 BR links epic via a synced Feature/theme, but FY26 Features weren't imported as themes (2 of 19). The grandparent Epics ARE synced (7/7), so generalized `syncHierarchy` to resolve epic from the ADO grandparent directly (not via themes) + added a going-forward BR for no-theme stories. Tab now shows 9 epics. | code | resolved (Test) |
 
 ## Workstreams
 
