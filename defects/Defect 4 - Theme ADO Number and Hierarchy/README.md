@@ -2,7 +2,7 @@
 
 - **ADO work item:** 269823
 - **Tester:** Betsy Kinney · opened 10/23/2026
-- **Status:** ✅ RESOLVED (Test, pending Betsy re-validation) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
+- **Status:** ✅ RESOLVED & VALIDATED (Test) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
 - **Expected (Betsy's test):** open theme THME0011011 (Cloud Landing Zone) and see
   ADO Number populated, the **epic related to the theme** shown, and the stories
   shown.
