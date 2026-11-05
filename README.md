@@ -28,7 +28,7 @@ The shared Script Includes live in `src/` (their methods serve several defects).
 | [1](defects/Defect%201%20-%20Backlog%20Count%20Mismatch/README.md) | Backlog count mismatch (area drift) | ✅ resolved (Test) |
 | [2](defects/Defect%202%20-%20Epic%20ADO%20Number%20and%20Story%20Linking/README.md) | Epic ADO Number & story linking | ✅ resolved (Test) |
 | [3](defects/Defect%203%20-%20Releases%20Not%20Listed/README.md) | Releases not listed | ✅ resolved & validated (Test) |
-| [4](defects/Defect%204%20-%20Theme%20ADO%20Number%20and%20Hierarchy/README.md) | Theme ADO Number & hierarchy | ⏳ mostly done (epics-on-theme open) |
+| [4](defects/Defect%204%20-%20Theme%20ADO%20Number%20and%20Hierarchy/README.md) | Theme ADO Number & hierarchy | ✅ resolved (Test, pending re-validation) |
 | [5](defects/Defect%205%20-%20Story%20Blank%20Fields%20and%20Count/README.md) | Story blank fields & count | ⏳ partial (points/project/release/theme/form done; sprint deferred) |
 | [6](defects/Defect%206%20-%20Epics%20Missing%20(DSS-CCS)/README.md) | Epics missing (DSS-CCS) | ⏳ open |
 | [7](defects/Defect%207%20-%20Acceptance%20Criteria%20Required/README.md) | Acceptance Criteria required | ✅ resolved & validated (Test) |

@@ -2,7 +2,7 @@
 
 - **ADO work item:** 269823
 - **Tester:** Betsy Kinney · opened 10/23/2026
-- **Status:** ⏳ IN PROGRESS (Test) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
+- **Status:** ✅ RESOLVED (Test, pending Betsy re-validation) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
 - **Expected (Betsy's test):** open theme THME0011011 (Cloud Landing Zone) and see
   ADO Number populated, the **epic related to the theme** shown, and the stories
   shown.
@@ -11,8 +11,13 @@
 
 **Done:** `u_ado_number` stamped on the synced themes; `rm_story.theme` linked
 area-wide (= 5,461); stories appear under the synced Theme; Theme form shows ADO
-Number; **theme duplication cleaned up** (see below). **Open:** the *parent Epic*
-on the Theme (the SN-model link, below) + the Theme-form Parent-Epic field.
+Number; **theme duplication cleaned up** (see below); **Parent Epic built** —
+`scrum_theme.u_parent_epic` field created, **405 themes backfilled** from each
+Feature's parent Epic, added to the Theme Scrum form, and an async BR keeps new
+themes current. All config in the 2_4 update set (Dictionary, Field Label, Form
+Layout, Business Rule, Number counter). Betsy's SUS theme (THME0011229) now has
+ADO# 238256, its Parent Epic, and 8 stories. **Open:** optional renumber of the 59
+residual number collisions (old un-synced manual themes).
 
 ## Hierarchy model (business-confirmed)
 
