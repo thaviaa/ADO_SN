@@ -11,13 +11,11 @@
 
 **Done:** `u_ado_number` stamped on the synced themes; `rm_story.theme` linked
 area-wide (= 5,461); stories appear under the synced Theme; Theme form shows ADO
-Number; **theme duplication cleaned up** (see below); **Parent Epic built** —
-`scrum_theme.u_parent_epic` field created, **405 themes backfilled** from each
-Feature's parent Epic, added to the Theme Scrum form, and an async BR keeps new
-themes current. All config in the 2_4 update set (Dictionary, Field Label, Form
-Layout, Business Rule, Number counter). Betsy's SUS theme (THME0011229) now has
-ADO# 238256, its Parent Epic, and 8 stories. **Open:** optional renumber of the 59
-residual number collisions (old un-synced manual themes).
+Number; **theme duplication cleaned up** (see below); **parent Epic shown via the
+native "Epics" related list** (switched from the `u_parent_epic` form field on
+11/05/2026 — see "Parent Epic display" below). Betsy's SUS theme (THME0011229) now
+has ADO# 238256, its parent Epic **EPIC0010147** in the Epics related list, and 8
+stories. All config in the 2_4 update set.
 
 ## Hierarchy model (business-confirmed)
 
@@ -28,9 +26,40 @@ Epic** (its Feature's parent); each **Epic groups many Themes** (up to 72).
 
 - ADO Epic → SN `rm_epic` · ADO Feature → SN `scrum_theme` · ADO Story → `rm_story`
 - Story carries both `theme` (its Feature) and `epic` (the grandparent Epic) — done.
-- **To build:** `scrum_theme` → parent `rm_epic` link (SN's native `rm_epic.theme`
-  is the reverse direction, so add a `u_parent_epic` reference on the Theme),
-  backfill it from the Feature's parent Epic, show it on the Theme form, + a BR.
+- **Parent Epic link:** each Theme's parent Epic is derived from the Feature's
+  parent Epic (live ADO `System.Parent`). How it's *displayed* changed on
+  11/05/2026 — see "Parent Epic display" below.
+
+## Parent Epic display — native "Epics" related list (decided 11/05/2026)
+
+**Decision:** show the parent Epic in the Theme form's native **"Epics" related
+list** (driven by `rm_epic.theme`) instead of a `u_parent_epic` field on the form.
+
+**Known limitation (accepted):** `rm_epic.theme` is single-valued and points the
+OOTB direction (Theme-is-parent), but our model is Epic > Theme where one Epic
+parents many Themes. Measured in Test: **406 themes with a parent epic, but only 50
+distinct epics** (up to **72 themes under one epic**). So an Epic can only point
+back to one Theme → populating `rm_epic.theme` leaves **~356 of 406 themes with an
+empty Epics list**. The alternative (a custom "Parent Epic" related list via a
+Relationship, backed by `u_parent_epic`) would cover all 406 but was **not**
+chosen. To keep Betsy's re-validation theme populated, the one-time script forces
+**THME0011229 → its Epic**; for other epics it picks the child theme with the most
+stories.
+
+**Implemented:**
+- One-time: `rm_epic.theme` set for **50 epics** (one child theme each). Betsy's
+  theme THME0011229 shows EPIC0010147. Script:
+  `src/background_scripts/defect4_native_epics_related_list.js` (data, re-run per env).
+- Going forward: BR **"Defect 4 - Set Epic Theme for native related list (ADO)"**
+  (`src/business_rules/defect4_set_epic_theme_native.js`) sets a new theme's parent
+  Epic `rm_epic.theme` **only when empty** (won't steal an Epic from a theme that
+  already shows it).
+- Old BR **"Set Theme Parent Epic from Feature parent (ADO)"** → **deactivated**.
+- `u_parent_epic` **removed from the Theme form** (Default + Scrum views, re-saved
+  via Form Layout so it captures). The column is **kept as backing data/lineage**
+  for the population script; it's just no longer on the form.
+- All config (BR add, old BR deactivate, both form sections) captured in the 2_4
+  update set.
 
 ## Root cause — theme duplication (11/05/2026)
 
