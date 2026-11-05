@@ -2,7 +2,14 @@
 
 - **ADO work item:** 269823
 - **Tester:** Betsy Kinney · opened 10/23/2026
-- **Status:** ⏳ OPEN
+- **Status:** ⏳ MOSTLY DONE (Test) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
+
+**Done:** `u_ado_number` stamped on all 431 themes; `rm_story.theme` linked
+area-wide (= 5,461); stories now appear under their Theme; Theme form already
+shows ADO Number. **Open:** *epics shown under the Theme* — blocked by the
+hierarchy inversion (ADO Epic is the PARENT of the Feature, but SN Theme is the
+parent of the Epic), so an Epic doesn't nest under a Theme and one Epic maps to
+many Themes. Needs a business decision on whether/how to represent it.
 - **Expected:** Theme ADO number populated; related epics and stories shown on
   the theme page.
 - **Actual:** No ADO number; no epics/stories linked to the theme.

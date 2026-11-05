@@ -2,7 +2,15 @@
 
 - **ADO work item:** 269821
 - **Tester:** Betsy Kinney · opened 10/23/2026
-- **Status:** ⏳ OPEN
+- **Status:** ✅ RESOLVED (Test) — 11/05/2026, update set `MECK - AT - 269821 269823 - UAT DEFECT 2_4`
+
+**Done:** story→epic linked area-wide (`rm_story.epic` = 5,497), `u_ado_number`
+stamped on all 191 epics, ADO Number added to the `rm_epic` **Scrum** form view
+(the Default view already had it), field map changed to `System.Parent → theme`,
+and the epic business rule created. All config captured in the 2_4 update set
+(Script Include, Business Rule, Field Map, Form Layout). ~712 stories have no
+parent Feature in ADO and ~178 have a Feature not yet synced as a theme — those
+link when the Feature syncs (field map + BR handle them going forward).
 - **Expected:** The ADO Number field is on the Epic form and populated; stories
   related to the epic show on the epic page in SN.
 - **Actual:** ADO Number not on the form / not populated; no ADO stories linked
