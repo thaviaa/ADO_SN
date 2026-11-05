@@ -52,9 +52,13 @@ Example: THME0011229 = "OTC - TaxRev" (May, no ADO) **and** "SUS…" (Oct, ADO 2
   themes get fresh numbers and never collide again.
 - Theme count 817 → **493**; duplicate numbers 381 → **59**; Betsy's SUS theme is now
   a single record (THME0011229, ADO 238256, 8 stories).
-- **Left alone:** 62 un-synced manual themes (no ADO twin). The 59 residual number
-  collisions are old no-twin manual themes sharing a number with a synced theme —
-  renumber those if a fully clean number set is wanted (pending decision).
+- **Left alone:** 62 un-synced manual themes (no ADO twin).
+- **Renumbered the 59 residual collisions** (old manual themes sharing a number with
+  a synced one) → fresh THME numbers; **0 duplicate numbers remain**, counter at 11499.
+- **Enforced uniqueness going forward:** `scrum_theme` is a standalone table (no
+  inheritance), so set `scrum_theme.number` dictionary **`unique = true`** — a scoped
+  unique index that blocks any future duplicate THME number. Combined with the
+  advanced counter, both recurrence paths are closed. (Captured in the 2_4 update set.)
 
 ## Likely root cause
 
