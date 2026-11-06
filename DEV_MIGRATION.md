@@ -175,3 +175,37 @@ re-retrieve in Dev → preview/commit **only the ADO_SN defect sets** (brings th
 fields + `ADOWorkItemBackfillUtil`); **(2)** run the data backfills in the §2 order — scope is
 large (8,271 stories for theme/epic/release/sprint), state correction is smaller than Test.
 Nothing was written to Dev for this snapshot.
+
+---
+
+## Dev (meckncdev) LIVE RUN results — 11/06/2026
+
+Config batch committed (fields/BRs/related lists/module verified present). Then the
+portable data backfills were run live and verified:
+
+| # | Backfill | Dev result |
+|---|---|---|
+| Config | `MECK - AT - ADO_SN UAT - DEV PROMOTION BATCH` (5 sets) | committed; `u_project` (theme+epic), BRs, related lists, module all verified |
+| SI | `ADOWorkItemBackfillUtil` | deployed in Dev (token retrieval OK) |
+| 1 | Hierarchy (story→theme/epic) | **6,258** stories→theme, **6,227**→epic (928 no ADO Feature, 1,088 Feature not synced) |
+| 2 | Theme parent-epic | **381** themes set (destructive theme-delete step skipped) |
+| 3 | Epic→project | **45** epics (42 via area, 4 via child stories) |
+| 4 | Theme→project | **336** themes via parent epic |
+| 5 | Theme short_description | **403** filled (788/788 now populated) |
+| 6 | Theme description (from ADO) | **217** |
+| 7 | Story state vs ADO | **1,062** corrected, 0 unmapped (now 7,024 Complete / 646 Draft) |
+| 8 | Native Epics list (`rm_epic.theme`) | **42** epics |
+| 9 | Backlog owner→PM | **10** re-owned (old owners kept as viewers) |
+| 10 | Role grant `scrum_product_owner` | granted to **ITS Project Managers** (30 members) |
+| 11 | Releases (Landing Zone, `syncIterations`) | **5,851** stories linked, 4 releases created |
+
+**Not done — Sprints (still outstanding):** Dev's 276 existing `rm_sprint` have **no**
+ADO-iteration external-id rows, so stories can't be linked generically. Recreating the
+ADO-linked sprint shells needs `defect5_sprint_backfill_landingzone.js` adapted to Dev's
+Landing Zone `sn_ado_int_project` sys_id (the Test copy hardcodes `7c53ca30`). Stories carry
+`ado_iteration` (8,274), so once the shells exist with the iteration GUID, linking is a
+lookup. Pending.
+
+**Note on long writes:** the big backfills (hierarchy 8k, release 5.8k) exceed the browser's
+45s client limit; the server completes them and they're idempotent, so re-running only
+touches remaining rows. Release linking needed a second pass to finish (node was busy).
