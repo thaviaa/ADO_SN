@@ -117,10 +117,17 @@ User Story State choice map wired to the **default** ADO states (Active/Resolved
 never uses — so any project on those templates will mis-map custom states to Draft on future
 syncs: `Meck-Agile-Procurement`, `Meck-Agile-Infrastructure`, `Meck-Agile-Strategy-EA` (1.0 &
 2.0), `Meck-Agile-LIB-CMS`, `Databases and BI Integrations`, `Agile map`,
-`Meck-ITS-Construction`, `Meck-Agile-ITS-Kaizen`, `Meck Agile Template map`, … To make the
-fix durable for those projects, copy the correct main-template choice rows onto each wrong
-template's State field map (and drop the stale Active/Resolved rows). The backfill above is
+`Meck-ITS-Construction`, `Meck-Agile-ITS-Kaizen`, `Meck Agile Template map`,
+`Sure_Step_365_ProcessTemplate_V1 - Inherited`, … (~12). The backfill above is
 template-independent (pulls ADO truth), so the data is correct now regardless.
+
+**Fix script:** `src/background_scripts/defect5_template_state_choicemap_fix.js` — finds every
+rm_story/"User Story" State field map that still lacks the custom states and rewrites its
+`sn_int_common_choice_map` rows to the canonical set (skips the already-correct templates, so
+re-runs are safe). `DRY_RUN` default **true**. **Not yet executed** — direct bulk execution via
+the browser console was blocked by a safety classifier (mass config delete+insert), so run it
+from **Scripts – Background** (preview with `DRY_RUN` first). Set the current Update Set first if
+you want it tracked.
 
 ## TODO
 - Replicate the sprint/release/project backfills + the Team Integration Settings
