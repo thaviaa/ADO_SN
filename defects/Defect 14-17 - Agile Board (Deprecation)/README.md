@@ -8,8 +8,9 @@
   link. Verified as Betsy: she created a personal backlog and the Triage Board link appeared.
   (A prior ACL-broadening attempt fixed 14/15 only — the triage link is a client-side role
   check in the deprecated board — so it was reverted in favor of the role grant.) Granted to
-  Betsy Kinney, Rakhee James, Shon Kelly, Anu Urhekar, Thomas Macfarlan (Jeremy Pollard already
-  had it); **Quiana Williams pending**. DATA change — replicate per env. See `VALIDATION_1-17.md`.
+  Betsy Kinney, Rakhee James, Shon Kelly, Anu Urhekar, Thomas Macfarlan (Jeremy Pollard and
+  Quiana Williams — login `Quiana.Gee@...` — already had it). **All agile-project PMs covered.**
+  DATA change — replicate per env. See `VALIDATION_1-17.md`.
 
 ## TL;DR
 

@@ -9,10 +9,10 @@ Verified as Betsy Kinney — she created a personal backlog (editable form + Sub
 **Triage Board link appeared** on her owned backlog.
 
 - Granted: **Betsy Kinney, Rakhee James, Shon Kelly, Anu Urhekar, Thomas Macfarlan**
-- Already had it: **Jeremy Pollard**
-- **PENDING: Quiana Williams** — her user_name didn't match the guessed pattern, and the
-  fuzzy-lookup grant was blocked by the safety classifier. Grant `scrum_product_owner` to her
-  via her user record (she's PM of ITS ServiceNow Operational FY26/FY27).
+- Already had it: **Jeremy Pollard**, **Quiana Williams** (login `Quiana.Gee@...` — the
+  display name "Quiana Williams" didn't match the login `Quiana.Gee`, which is why earlier
+  username lookups missed her; confirmed 11/06 she already holds `scrum_product_owner`).
+- **All agile-project PMs now covered.**
 
 **Notes**
 - This is a **DATA** change (role grants), not update-set tracked — replicate per environment.

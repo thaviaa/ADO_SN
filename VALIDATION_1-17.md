@@ -57,9 +57,11 @@ Triage Board link, which is a client-side role check in the deprecated Agile Boa
 those ACL changes were reverted in favor of the role grant.)
 
 **Applied (Test, 11/06):** granted `scrum_product_owner` to the agile project PMs — **Betsy
-Kinney, Rakhee James, Shon Kelly, Anu Urhekar, Thomas Macfarlan** (Jeremy Pollard already had
-it). **Pending: Quiana Williams** (username didn't match; grant via her user record). This is a
-**DATA** change (role grant), not update-set tracked — replicate per environment. The earlier
+Kinney, Rakhee James, Shon Kelly, Anu Urhekar, Thomas Macfarlan** (Jeremy Pollard and **Quiana
+Williams** already had it). Quiana's login is `Quiana.Gee@...` — the display-name/login mismatch
+is why earlier username lookups missed her; confirmed 11/06 she already holds the role. **All
+agile-project PMs are now covered.** This is a **DATA** change (role grant), not update-set
+tracked — replicate per environment. The earlier
 ACL update set `MECK - AT - 270034 270036 - AGILE SELF SERVICE PERMS` was reverted and is now a
 no-op.
 
