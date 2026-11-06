@@ -124,3 +124,18 @@ SN:    Theme →  Epic     →  Story
 ## Notes
 - Theme source is a **dependency**, not a dev task. Shares hierarchy work with
   Defect 2.
+
+## Retest (Betsy, 11/05) failed — coverage of native Epics list (reviewed 11/06)
+
+Betsy's 2nd retest (ADO 269823, *4. Betsy - Retest - Defect Agile Development_Themes* doc)
+**failed**. Verified on 11/06: her own validation theme **THME0011229** is correct (ADO#
+238256, parent Epic in the Epics list, 8 stories), but the native **"Epics" related list**
+(driven by single-valued `rm_epic.theme`) shows the parent Epic on only **50 of 406** themes —
+**356 themes (88%) show an empty Epics list**. So any theme Betsy opened other than the seeded
+one shows no parent Epic. `u_parent_epic` is populated on all 406 (backing data).
+
+**Decision (11/06): leave as-is (native Epics list).** Accepted that most themes won't show the
+parent Epic in the related list; `u_parent_epic` remains as backing data/lineage. (Options not
+taken: re-add `u_parent_epic` to the Theme form, or a custom Relationship-backed "Parent Epic"
+related list — either would cover all 406.) The Epic → child-Themes direction **is** fully
+covered by the **Themes related list on `rm_epic`** added under the Defect 2 retest (11/06).
