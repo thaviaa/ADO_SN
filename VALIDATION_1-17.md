@@ -25,11 +25,11 @@ exercised each defect through the UI as the tester would, cross-checked against 
 | 11 | Scrum Master sees "Create Agile Group" | ✅ **Pass — fix confirmed**; Betsy gets **No Results** | nav search |
 | 12 | Theme "no data" + New | ✅ Pass — source-empty fields; New = blank by design | theme form |
 | 13 | Theme Description & Assigned To | ✅ Pass — THME0011073 shows Description + **Assigned to** | theme form |
-| 14/15 | Personal backlog sharing / Submit | ❌ **FAIL** — Betsy **cannot create** a personal backlog (form read-only, **no Submit**) | personal-backlog form |
+| 14/15 | Personal backlog sharing / Submit | ✅ **Pass (fixed 11/06)** — Betsy created a personal backlog (editable form, Submit) | personal-backlog form |
 | 16 | Create Story Submit | ✅ Pass — Create Story shows **Save + Submit** | create-story modal |
-| 17 | Triage Board link | ❌ **FAIL** — **no Triage Board link** on Betsy's owned CLZ backlog | backlog view |
+| 17 | Triage Board link | ✅ **Pass (fixed 11/06)** — Triage Board link appears on Betsy's owned backlog | backlog view |
 
-**Score: 15 / 17 pass.** Defects **14/15** and **17** fail for the scrum-user role.
+**Score: 17 / 17 pass** (14/15 & 17 fixed 11/06 by granting PMs `scrum_product_owner`).
 
 ## Root cause of the two failures (same class)
 
@@ -44,10 +44,29 @@ that **only admins can create them** in this instance:
 - As **admin**, admin-override makes both work — which is why these looked fine until the
   retest as Betsy.
 
-Agile 2.0 Personal Backlogs/Triage are meant to be **self-service** for scrum users, so this
-is a permission gap, not expected behavior. The fix is to grant scrum users create access to
-`backlog_definition` and `triage_definition` (ACL role, or the Agile2SecurityManager config),
-then re-validate as Betsy. **Not yet applied — needs a controlled change + retest.**
+### Resolution (11/06) — grant PMs `scrum_product_owner`
+
+The whole cluster (personal-backlog **create/write/delete**, triage **create/write**, AND the
+Agile Board's client-side **Triage Board link**) is OOTB-gated on the **`scrum_product_owner`**
+role. The Meck PM testers have scrum_master/scrum_admin/scrum_user but **not** scrum_product_owner.
+
+Verified fix (as Betsy): with `scrum_product_owner`, the personal-backlog form is editable and
+she **created a backlog**, and the **Triage Board link appears** on her owned backlog. (An
+earlier attempt to broaden the ACLs to `scrum_user` fixed 14/15 but could **not** fix the
+Triage Board link, which is a client-side role check in the deprecated Agile Board bundle — so
+those ACL changes were reverted in favor of the role grant.)
+
+**Applied (Test, 11/06):** granted `scrum_product_owner` to the agile project PMs — **Betsy
+Kinney, Rakhee James, Shon Kelly, Anu Urhekar, Thomas Macfarlan** (Jeremy Pollard already had
+it). **Pending: Quiana Williams** (username didn't match; grant via her user record). This is a
+**DATA** change (role grant), not update-set tracked — replicate per environment. The earlier
+ACL update set `MECK - AT - 270034 270036 - AGILE SELF SERVICE PERMS` was reverted and is now a
+no-op.
+
+> Note: `scrum_product_owner` also carries other scrum product-owner capabilities; granting it
+> is the OOTB way to enable these features for PMs. If you want these features for *all* scrum
+> users (broader self-service) instead, the alternative is broadening the backlog/triage ACLs —
+> but the deprecated Agile Board's Triage Board link would still require `scrum_product_owner`.
 
 ## Notes
 - 16 is working-as-designed (Submit = new record; Save then Update).
