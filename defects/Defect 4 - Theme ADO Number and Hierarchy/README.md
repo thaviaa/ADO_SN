@@ -139,3 +139,29 @@ parent Epic in the related list; `u_parent_epic` remains as backing data/lineage
 taken: re-add `u_parent_epic` to the Theme form, or a custom Relationship-backed "Parent Epic"
 related list — either would cover all 406.) The Epic → child-Themes direction **is** fully
 covered by the **Themes related list on `rm_epic`** added under the Defect 2 retest (11/06).
+
+## Final resolution (11/06/2026) — per-theme Epics list + inline-add
+
+After the "leave as-is" note above, the decision was reversed to **populate the native
+Epics related list per theme** (user: *"keep per theme"*). Done:
+
+- **`rm_epic.theme` set per theme** so each theme's parent Epic shows in its native
+  **Epics** related list. Confirmed on the two validation themes:
+  - **THME0011124 → EPIC0010149** (ADO Feature → parent Epic 236748)
+  - **THME0011225 → EPIC0010147**
+  The rest were set by `src/background_scripts/defect4_native_epics_related_list.js`
+  (DRY_RUN default true; picks the child theme with the most stories per epic, Betsy's
+  THME0011229 forced to win for its epic). `rm_epic.theme` is single-valued, so an epic
+  that parents many themes still appears under only one — accepted.
+- **Inline add from the Theme form.** `sys_ui_list_control` on the Theme's Epics list set
+  with **`omit_edit_button` / `omit_new_button`** tuned so a user can associate an epic to
+  a theme directly from the theme (user configured the related list controls themselves —
+  *"stop let me configure the related list"*). Validated: *"you should be able to add an
+  epic under the theme now."*
+- **Going-forward BR** `Defect 4 - Set Epic Theme for native related list (ADO)` on
+  `rm_epic` keeps `rm_epic.theme` populated on new theme syncs (sets only when empty).
+- **ADO bug 269823 → Resolved** (user updated it).
+
+**Config to migrate (Dev):** the Epics-list `sys_ui_list_control` change on the Theme form
++ the going-forward BR. **Data to re-run (Dev):** `defect4_native_epics_related_list.js`.
+See `DEV_MIGRATION.md`.

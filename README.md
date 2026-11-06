@@ -40,9 +40,15 @@ The shared Script Includes live in `src/` (their methods serve several defects).
 | [12](defects/Defect%2012%20-%20Theme%20Record%20No%20Data%20and%20New%20Association/README.md) | Theme "no data" + New association | ✅ closed — validated; not a bug (source-empty; New=blank by OOTB design) |
 | [13](defects/Defect%2013%20-%20Theme%20Field%20Map%20(Description%20and%20Assigned%20To)/README.md) | Theme Description & Assigned To not mapped | ✅ resolved (Test) |
 | [14/15,16,17](defects/Defect%2014-17%20-%20Agile%20Board%20(Deprecation)/README.md) | Agile Board: backlog sharing / Submit / Triage Board | ✅ resolved (Test) — 16 not a bug; 14/15 & 17 fixed by granting PMs `scrum_product_owner` (verified as Betsy) |
+| [18](defects/Defect%2018%20-%20Landing%20Zone%20Epics%20Not%20Showing/README.md) | Landing Zone epics not all showing | ✅ not a bug — Epics view `active=true` hides 13 Complete; all 23 present & project-linked |
+| [19](defects/Defect%2019%20-%20Duplicate%20Story%20STRY0022613/README.md) | Duplicate/orphan story STRY0022613 | ⏸️ flagged — ADO# 270073 doesn't exist; dup of STRY0019149; left per user |
+| [20](defects/Defect%2020%20-%20Story%20State%20Mismatch/README.md) | Story.State ≠ ADO | ✅ resolved (Test) — fixed by Defect 5 state backfill (7,106 corrected) |
 
 Cross-cutting views: [`docs/uat-defects.md`](docs/uat-defects.md) (triage + field
 maps + processing findings), [`docs/uat-plan.md`](docs/uat-plan.md) (timeline).
+
+**Promoting to Dev:** [`DEV_MIGRATION.md`](DEV_MIGRATION.md) — update sets to transfer +
+ordered data backfill scripts + per-defect validation for **meckncdev**.
 
 ## Components
 
