@@ -98,11 +98,13 @@ Create one via Personal Backlogs > New. See also the owner-alignment note below.
 Project backlogs are owned by whoever created them, not the project's PM, so PMs don't get
 owner controls (Triage Board, edit, sharing) on their own project's backlog. Example:
 **Rakhee James is the PM of BizTax Replacement**, but Valerie Thomas owns that backlog.
-A data update can set `backlog_definition.owner = pm_project.project_manager` (mapped via
-the backlog's `filter` → `project=<sysid>`): 13 project backlogs, **10** where owner ≠ PM,
-2 already match, 1 with no PM. Caveat: in all 10 the current owner is not in "Visible to",
-so preserve their access by adding them to `shared_with` when reassigning. (Pending
-decision; data change, re-run per environment.)
+**Done (Test, 11/05).** `src/background_scripts/align_project_backlog_owner_to_pm.js` set
+`backlog_definition.owner = pm_project.project_manager` (mapped via the backlog's `filter`
+→ `project=<sysid>`): **10 changed**, 3 skipped (2 already PM, 1 no PM). Each former owner
+was added to `shared_with` ("Visible to") so nobody lost access. Verified: all 12 project
+backlogs with a PM now have owner = PM; BizTax is now owned by **Rakhee James** (Valerie
+Thomas retained in Visible to) — so the PM now gets the Triage Board + edit controls on
+their own project backlog. DATA change (not update-set tracked) — re-run per environment.
 
 ## Recommendation
 
