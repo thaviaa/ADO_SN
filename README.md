@@ -30,7 +30,7 @@ The shared Script Includes live in `src/` (their methods serve several defects).
 | [2b](defects/Defect%202b%20-%20Epic%20Project%20Mapping/README.md) | Epic → Project mapping (u_project) | ✅ resolved & validated (Test) |
 | [3](defects/Defect%203%20-%20Releases%20Not%20Listed/README.md) | Releases not listed | ✅ resolved & validated (Test) |
 | [4](defects/Defect%204%20-%20Theme%20ADO%20Number%20and%20Hierarchy/README.md) | Theme ADO Number & hierarchy | ✅ resolved & validated (Test) |
-| [5](defects/Defect%205%20-%20Story%20Blank%20Fields%20and%20Count/README.md) | Story blank fields & count | ⏳ partial (points/project/release/theme/form done; sprint deferred) |
+| [5](defects/Defect%205%20-%20Story%20Blank%20Fields%20and%20Count/README.md) | Story blank fields & count | ✅ resolved (Test) — points/project/release/theme/form + sprint |
 | [6](defects/Defect%206%20-%20Epics%20Missing%20(DSS-CCS)/README.md) | Epics missing (DSS-CCS) | ✅ resolved & validated (Test) |
 | [7](defects/Defect%207%20-%20Acceptance%20Criteria%20Required/README.md) | Acceptance Criteria required | ✅ resolved & validated (Test) |
 | [8](defects/Defect%208%20-%20New%20Release%20Not%20in%20Dropdown/README.md) | New release not in dropdown | ✅ resolved & validated (Test) |

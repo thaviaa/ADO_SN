@@ -2,7 +2,7 @@
 
 - **ADO work item:** 269818
 - **Tester:** Betsy Kinney · opened 10/23/2026
-- **Status:** ⏳ PARTIALLY DONE
+- **Status:** ✅ RESOLVED (Test) — 11/05/2026
 
 ## Breakdown
 
@@ -11,10 +11,10 @@
 | Count mismatch (SN 4,797 vs ADO 6,077) | ✅ cleared | Not an import gap — filtered SN view + area drift (see Defect 1). Area reconciles exactly. |
 | Points blank | ✅ not a bug | `StoryPoints → story_points` is correct; `storyPointsCompare` match=6023, lost=0. |
 | **Project blank** | ✅ fixed (Test) | `AreaPath → project` only resolves the area leaf by name at sync time; backfilled 1,256 stories with `backfillProject`. |
-| Theme blank | ⏳ open | No field-map row. |
+| Theme blank | ✅ fixed (Test) | Field-map row `System.Parent → theme` present; populates (Defect 4). |
 | **Release blank** | ✅ fixed (Test) | `syncIterations` parses the ADO iteration path and set `rm_story.release` on 4,916 LZ stories (Defect 3/8). |
-| **Sprint blank** | ⛔ deferred | Needs the **Agile 2.0 iteration framework** stood up first — see below. Not a backfill. |
-| ADO Number / Priority not on form | ⏳ open | Form layout. |
+| **Sprint blank** | ✅ fixed (Test) | Backfilled — 33 sprints + 4,912 stories linked (see "Sprint" below). Earlier "deferred" hypothesis was wrong. |
+| ADO Number / Priority not on form | ✅ fixed (Test) | On the Story form; validated (only Sprint remained). |
 
 ## Project backfill (done in Test)
 
@@ -37,38 +37,38 @@ StoryPoints→story_points, Priority→priority, AcceptanceCriteria→acceptance
 
 **Missing rows:** Theme, Sprint (`System.IterationPath`), Release.
 
-## Sprint — deferred (framework not set up)
+## Sprint — RESOLVED (11/05/2026)
 
-Sprint is **not** a backfill in this instance. `rm_story.sprint` → `rm_sprint`,
-and `rm_sprint` hard-requires a valid Agile 2.0 iteration
-(`sn_apw_advanced_eap_iteration`), enforced by the *"Check sprint fields correctly
-filled in"* business rule (name + release + dates + team are all insufficient
-without it). That APW iteration model is a self-referential tree guarded by
-*"Prevent Overlapping EAP Iterations"*, and it is **empty/unconfigured here**:
-**0 APW iterations, 0 scrum teams**, no cadence tables.
+The earlier "needs the full Agile 2.0 / APW framework" theory was **wrong**. The
+synced `rm_sprint` records are **thin shells** — `short_description` = the sprint
+name, start/end dates, and an external-id row linking to the ADO iteration GUID.
+They carry **no** `release`, `release_team`, or APW `iteration`, and the 73 working
+sprints (FY26/PRiSM/BizTax) were created this way. So no cadence/APW stack is
+required.
 
-So populating Sprint means **standing up the Agile 2.0 stack** —
-teams → cadence → APW iterations → `rm_sprint` — within the overlap rules. Not a
-data sync. ADO already carries the source data: 8 teams (`sn_ado_int_team`), the
-iteration tree with real sprint start/finish dates, and 311 mirrored iteration
-nodes (`sn_ado_int_iteration`).
+**How sprint actually works:** there is **no sprint field map**. `rm_sprint` is
+created by **`ADOSprintUtil.handleSprint` during work-item import**, and the story's
+Sprint is set then. That only runs for (re)processed work items — and the import is
+incremental, so Landing Zone's already-imported stories were never reprocessed and
+its sprints were never created (it had 7 releases but 0 sprints).
 
-**Preferred path:** don't script the stack by hand. The OOTB integration already
-mirrors the ADO iterations; the sprint sync almost certainly stalls because
-**Team Integration Settings** aren't configured (ADO teams not mapped to SN Agile
-teams). Configure that first and let the integration generate iterations/sprints.
-*Confirm the exact OOTB behavior in Team Integration Settings before building.*
+**Fix (Test) — `defect5_sprint_backfill_landingzone.js`:** mirror the OOTB shell for
+Landing Zone directly from SN data —
+- created **33 `rm_sprint`** (one per leaf iteration; `short_description` = sprint
+  name, start/end dates pulled from ADO classification nodes, external-id → iteration
+  GUID);
+- linked **4,912 stories'** Sprint field from each story's own `ado_iteration`
+  (already on its external-id row). The ~1,156 stories at Release-level iterations
+  have no sprint (correct).
+- Validated: STRY0022497 → **Sprint 23** (was blank).
 
-**Business decisions:**
-- Team mapping — ✅ **1:1** (each of the 8 ADO teams → one SN Agile team), confirmed 11/04/2026.
-- Cadence — ⏳ open: mirror ADO's exact (possibly irregular) sprint dates, or impose
-  a regular cadence? Drives the overlap-rule handling.
+**Going forward:** new/changed stories get sprints from the normal import
+(`ADOSprintUtil.handleSprint`) now that the Team Integration Settings exist; this
+backfill only covered the pre-existing Landing Zone stories.
 
-Raised as a separate item (needs the cadence decision + the Team Integration
-Settings dig).
+**Team mapping:** ✅ 1:1 (8 ADO teams → SN), Team Integration Settings created
+11/05/2026 (see Defect 6 for the Default-Area fix that unblocked them).
 
 ## TODO
-- **Sprint:** separate Agile 2.0 framework setup (above) — business decision.
-- Theme (Defect 4) — field-map row + hierarchy source.
-- Add `u_ado_number` and the Priority field to the Story form.
-- Replicate the release linking + project backfill in Dev.
+- Replicate the sprint/release/project backfills + the Team Integration Settings
+  in Dev/other environments (data is not update-set tracked).
