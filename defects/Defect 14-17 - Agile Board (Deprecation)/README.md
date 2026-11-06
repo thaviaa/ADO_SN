@@ -2,11 +2,13 @@
 
 - **ADO work items:** 270034 (14 & 15), 270035 (16), 270036 (17)
 - **Tester:** Rakhee James · opened 11/04/2026
-- **Status:** ✅ All resolved as **not config bugs** (Test, 11/05). 16 = Submit present.
-  14/15 & 17 = the tester never **owned** a personal backlog — the features work via the
-  correct entry point (Agile Development > Personal Backlogs). No fix needed; guidance only.
-  (Agile Board deprecation noted separately — migration is a future roadmap item, not
-  required to resolve these.)
+- **Status (corrected 11/05 after retest as Betsy Kinney):** 16 = ✅ not a bug (Submit present).
+  **14/15 & 17 = ❌ real permission gap** — non-admin scrum users **cannot create**
+  `backlog_definition` (personal backlog) or `triage_definition` (triage board): the forms
+  are read-only with no Submit, and the Triage Board link doesn't appear. My earlier
+  "resolved in place" was wrong — it was tested **as admin**, where admin-override hides the
+  gap. See `VALIDATION_1-17.md` for the full retest. Fix (grant scrum users create access)
+  not yet applied — needs a controlled change + re-validation as a scrum user.
 
 ## TL;DR
 
