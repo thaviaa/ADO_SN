@@ -96,10 +96,13 @@ reprocessed them.
   Title) for the 431 blank themes → **0 blank** remaining. Re-run per environment.
 - **ADO direction:** the complementary ask — push `scrum_theme.short_description` **out** to
   the ADO **Feature.Title** — is the reverse of the import. The OOTB integration is one-way
-  (ADO→SN), so an outbound write needs an ADO REST `PATCH` on `System.Title`
-  (`ADOWorkItemBackfillUtil` already holds the auth/OAuth plumbing to extend for it). Left as
-  a follow-up: in practice `name`/`short_description`/Feature.Title are the same string, so the
-  values already agree after this backfill — only genuinely SN-edited titles would need the push.
+  (ADO→SN), so an outbound write needs an ADO REST `PATCH` on `System.Title`. Built as
+  **`src/background_scripts/defect2_theme_title_push_to_ado.js`** (reuses the OAuth token from
+  `ADOWorkItemBackfillUtil`; `DRY_RUN` default **true**). It compares live and only PATCHes a
+  Feature whose ADO Title actually differs from the SN short description — in practice
+  `name`/`short_description`/Feature.Title are the same string after the inbound backfill, so
+  it is a no-op except for genuinely SN-edited titles. **Not yet executed** — it writes to ADO,
+  so run it deliberately (preview with `DRY_RUN` first).
 
 ## Theme not related to a Project — new field + BR + backfill (11/06)
 
