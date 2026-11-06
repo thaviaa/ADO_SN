@@ -15,7 +15,9 @@
 (function () {
     var DRY_RUN = true;
     var ADO_PROJECT = 'ITS - Landing Zone Remediation';
-    var LZ_PROJECT_PREFIX = '7c53ca30'; // sn_ado_int_project sys_id prefix
+    // Portable: resolve the sn_ado_int_project by NAME (sys_ids differ per env).
+    // (Was a hardcoded sys_id prefix '7c53ca30' for Test; name lookup works in Dev too.)
+    var LZ_PROJECT_NAME = 'Landing Zone';
 
     var util = new ADOWorkItemBackfillUtil();
     var token = util._getAccessToken(false);
@@ -41,7 +43,7 @@
 
     // 2. create rm_sprint per leaf iteration (if missing)
     var pr = new GlideRecord('sn_ado_int_project');
-    pr.addEncodedQuery('sys_idSTARTSWITH' + LZ_PROJECT_PREFIX);
+    pr.addQuery('name', 'CONTAINS', LZ_PROJECT_NAME);
     pr.query();
     if (!pr.next()) { gs.info('[SPRINT-BACKFILL] ABORT: LZ project not found'); return; }
     var lz = pr.getUniqueValue();

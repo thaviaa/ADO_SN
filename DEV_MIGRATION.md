@@ -209,3 +209,12 @@ lookup. Pending.
 **Note on long writes:** the big backfills (hierarchy 8k, release 5.8k) exceed the browser's
 45s client limit; the server completes them and they're idempotent, so re-running only
 touches remaining rows. Release linking needed a second pass to finish (node was busy).
+
+### Sprints — DONE 11/06 (Dev)
+
+Sprint backfill adapted for Dev (project resolved by name, not the Test-hardcoded sys_id):
+**33 rm_sprint shells created** (with iteration-GUID external-id rows) + **5,846 Landing Zone
+stories linked** to their sprint. `defect5_sprint_backfill_landingzone.js` updated to resolve
+the `sn_ado_int_project` by name so it is portable across environments.
+
+**Dev data phase complete.** Remaining non-data item: Defect 19 decision (STRY0022613).
