@@ -39,7 +39,7 @@ The shared Script Includes live in `src/` (their methods serve several defects).
 | [11](defects/Defect%2011%20-%20Scrum%20Master%20Sees%20Create%20Agile%20Group/README.md) | Scrum Master sees "Create Agile Group" | ✅ resolved (Test) — module `override_menu_roles`=true |
 | [12](defects/Defect%2012%20-%20Theme%20Record%20No%20Data%20and%20New%20Association/README.md) | Theme "no data" + New association | ✅ closed — validated; not a bug (source-empty; New=blank by OOTB design) |
 | [13](defects/Defect%2013%20-%20Theme%20Field%20Map%20(Description%20and%20Assigned%20To)/README.md) | Theme Description & Assigned To not mapped | ✅ resolved (Test) |
-| [14/15,16,17](defects/Defect%2014-17%20-%20Agile%20Board%20(Deprecation)/README.md) | Agile Board: backlog sharing / Submit / Triage Board | 🔎 16 = not a bug (Submit present); 14/15 & 17 = Agile Board **deprecation**, needs direction |
+| [14/15,16,17](defects/Defect%2014-17%20-%20Agile%20Board%20(Deprecation)/README.md) | Agile Board: backlog sharing / Submit / Triage Board | ✅ all resolved in place — not config bugs (Submit present; use Personal Backlogs > New; Triage needs an owned backlog) |
 
 Cross-cutting views: [`docs/uat-defects.md`](docs/uat-defects.md) (triage + field
 maps + processing findings), [`docs/uat-plan.md`](docs/uat-plan.md) (timeline).
