@@ -64,3 +64,33 @@ and `scrum_theme` form (Defect 4) via Configure → Form Layout (update set
 
 ## Notes
 - Related to Defect 4 (Theme hierarchy) and Defect 5 (Parent→epic suspect map).
+
+## Retest 11/06 (Betsy Kinney) — theme on the Epic + blank short_description
+
+Betsy retested on **EPIC0010149** (ADO Epic 236748, "Ravnur Video Portal") and asked:
+the Theme isn't populated, and *"there are many features associated to this one epic —
+can it populate all related features? If only one, how does it pick?"*
+
+**Hierarchy clarification.** Meck's process map (`Meck-Agile-Template-1.0.0`) maps ADO
+**Epic → SN Epic** (`rm_epic`), ADO **Feature → SN Theme** (`scrum_theme`), ADO Story →
+Story. So **one SN Epic = one ADO Epic with many child Features = many Themes**.
+EPIC0010149 has **11** child Features/Themes (linked via `scrum_theme.u_parent_epic`).
+The single `rm_epic.theme` field can hold only one (set by the Defect 4 backfill), which
+is why it looked incomplete. Also, the Epic **Default view had no Theme field** (only the
+Scrum/Benefit views) — if she opened it in Default view the field simply wasn't there.
+
+**Fix (update set `MECK - AT - DEFECT 2 - EPIC THEMES`):**
+- Added a **Themes related list** (`scrum_theme.u_parent_epic`) to the `rm_epic` form on the
+  **Scrum** and **Default** views → shows **all** child feature-themes on the epic
+  (verified: "Themes (11)" tab on EPIC0010149). This is the correct way to represent
+  one-Epic-to-many-Features, and directly answers "can it show all related features?" → yes.
+
+## Theme short_description was blank — map + backfill (11/06)
+
+`scrum_theme.short_description` was blank on **431** of 495 themes (a mandatory/display
+field). The `short_description ← System.Title` field map already exists in the active
+**Meck-Agile-Template** process map (ADO Feature Title → Theme short description), so new
+themes populate going forward; existing ones predated it and incremental import never
+reprocessed them.
+- **Backfill (DATA):** set `short_description = name` (name already holds the ADO Feature
+  Title) for the 431 blank themes → **0 blank** remaining. Re-run per environment.
