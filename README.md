@@ -35,6 +35,11 @@ The shared Script Includes live in `src/` (their methods serve several defects).
 | [7](defects/Defect%207%20-%20Acceptance%20Criteria%20Required/README.md) | Acceptance Criteria required | ✅ resolved & validated (Test) |
 | [8](defects/Defect%208%20-%20New%20Release%20Not%20in%20Dropdown/README.md) | New release not in dropdown | ✅ resolved & validated (Test) |
 | [9](defects/Defect%209%20-%20FY26%20Epics%20Not%20in%20Project%20Workspace/README.md) | FY26 epics not in Project Workspace | ✅ resolved & validated (Test) |
+| [10](defects/Defect%2010%20-%20Themes%20Missing%20(Finance%20Data%20Integrations)/README.md) | Themes missing (Finance Data Integrations) | ✅ resolved — correct data (1 Feature=1 theme); cleared by 2b |
+| [11](defects/Defect%2011%20-%20Scrum%20Master%20Sees%20Create%20Agile%20Group/README.md) | Scrum Master sees "Create Agile Group" | ✅ resolved (Test) — module `override_menu_roles`=true |
+| [12](defects/Defect%2012%20-%20Theme%20Record%20No%20Data%20and%20New%20Association/README.md) | Theme "no data" + New association | ✅ closed — validated; not a bug (source-empty; New=blank by OOTB design) |
+| [13](defects/Defect%2013%20-%20Theme%20Field%20Map%20(Description%20and%20Assigned%20To)/README.md) | Theme Description & Assigned To not mapped | ✅ resolved (Test) |
+| [14/15,16,17](defects/Defect%2014-17%20-%20Agile%20Board%20(Deprecation)/README.md) | Agile Board: backlog sharing / Submit / Triage Board | 🔎 16 = not a bug (Submit present); 14/15 & 17 = Agile Board **deprecation**, needs direction |
 
 Cross-cutting views: [`docs/uat-defects.md`](docs/uat-defects.md) (triage + field
 maps + processing findings), [`docs/uat-plan.md`](docs/uat-plan.md) (timeline).
