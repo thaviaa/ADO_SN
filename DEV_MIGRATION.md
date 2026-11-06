@@ -131,3 +131,47 @@ Re-run the retest for each: 1, 2, 2b, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14–
   the DRY_RUN preview counts, not the Test numbers.
 - **Collisions.** Preview every update set; OOTB record versions can differ between instances.
 - **Do config then data**, and keep each script's DRY_RUN preview as the go/no-go.
+
+---
+
+## Dev (meckncdev) DRY-RUN snapshot — 11/06/2026 (read-only recon, nothing written)
+
+**Transfer plumbing:** ✅ update source **Test → meckncdev** exists; **35 `MECK - AT`**
+remote sets already retrieved. BUT most of those 35 are Jack's other **SPM / Demand /
+Project** work — only a handful are the ADO_SN defect sets. Do **not** blanket-commit.
+
+**Stale snapshots:** some defect sets show *committed* in Dev (e.g. `269821 269823 - UAT
+DEFECT 2_4`) yet the artifacts aren't actually present — the committed copy is an **older
+retrieval** than the current Test set. Re-retrieve after completing the Test sets.
+
+**Field presence in Dev:**
+
+| Field | In Dev? | Source set |
+|---|---|---|
+| `scrum_theme.u_ado_number` | ✅ yes | (already landed) |
+| `scrum_theme.u_parent_epic` | ✅ yes | (already landed) |
+| `rm_epic.u_ado_number` | ✅ yes | (already landed) |
+| `scrum_theme.u_project` | ❌ **NO** | `DEFECT 2 - EPIC THEMES` (in progress in Test) |
+| `rm_epic.u_project` | ❌ **NO** | Defect 2b set |
+| `ADOWorkItemBackfillUtil` (SI) | ❌ **NO** | rides in a UAT set — needed for token backfills |
+| `ADOReconciliationUtil` (SI) | ✅ present | may be older than repo version |
+
+**Backfill scope in Dev (DRY-RUN counts — Dev is essentially un-backfilled):**
+
+| Backfill | Dev scope | Gated on |
+|---|---|---|
+| Story → epic | **8,270** stories blank | hierarchy sync + ADO token (SI) |
+| Story → theme | **8,271** blank | hierarchy sync + ADO token |
+| Story → release | **8,271** blank | `syncIterations` + ADO token |
+| Story → sprint | **8,271** blank | sprint backfill + ADO token |
+| Theme short_description | **403 / 788** blank | none — runnable standalone (SN-only) |
+| Theme → project (`u_project`) | n/a | **field missing** — commit config first |
+| Epic → project (`u_project`) | n/a | **field missing** — commit config first |
+| Story state (vs ADO) | Dev dist: 6,121 Complete / 1,639 Draft / 245 Cancelled (~75% done already — far better than Test's 82% Draft) | ADO token (SI); exact mismatch count needs the committed SI + DRY run |
+
+**Conclusion:** Dev got the OOTB ADO sync but **none** of the custom backfills. A clean
+promotion is a sequenced release: **(1)** complete the in-progress `MECK - AT` sets in Test →
+re-retrieve in Dev → preview/commit **only the ADO_SN defect sets** (brings the missing
+fields + `ADOWorkItemBackfillUtil`); **(2)** run the data backfills in the §2 order — scope is
+large (8,271 stories for theme/epic/release/sprint), state correction is smaller than Test.
+Nothing was written to Dev for this snapshot.
