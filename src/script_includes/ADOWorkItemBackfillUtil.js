@@ -221,8 +221,9 @@ ADOWorkItemBackfillUtil.prototype = {
         /*var endpoint = this.ADO_ORG_URL + '/_apis/wit/workItems/' + adoId +
             '/comments?api-version=' + this.COMMENTS_API_VERSION + '&order=desc';*/
 
+        // order=asc so ADO returns comments oldest-first (its default is desc).
         var endpoint = this.ADO_ORG_URL + '/_apis/wit/workItems/' + adoId +
-            '/comments?api-version=' + this.COMMENTS_API_VERSION + '&fromRevision=1&$top=200';
+            '/comments?api-version=' + this.COMMENTS_API_VERSION + '&fromRevision=1&$top=200&order=asc';
 
         var r = new sn_ws.RESTMessageV2();
         r.setHttpMethod('GET');
@@ -249,6 +250,8 @@ ADOWorkItemBackfillUtil.prototype = {
                         rev: list[i].revision
                     });
                 }
+                // Don't trust the API default order - guarantee oldest-first by revision.
+                out.sort(function (a, b) { return (a.rev || 0) - (b.rev || 0); });
                 return out;
             } catch (e) {
                 gs.error(this.LOG_PREFIX + 'Failed to parse comments for ' + adoId + ': ' + e.message);
