@@ -37,6 +37,9 @@ collisions → Commit.**
 - Themes related list on Epic (Scrum + Default); "Epics (Theme Parent Epic)" relationship
   on the Theme Scrum view; reactivated BR *Defect 4 - Set Theme Parent Epic from Feature parent (ADO)*
 - Scheduled jobs (daily 6:15 / 6:45 AM ET): story Description/AC/Comments backfill, Theme description backfill
+- Theme Description HTML → plain text: Script Include `ADOSNTextUtil`, BR *ADO-SN - Theme Description HTML to text*
+  (scrum_theme, before insert/update), `ADOThemeBackfillUtil` writes through `ADOSNTextUtil().htmlToText(desc)`,
+  fix script **ADO-SN Theme Description HTML Cleanup**
 
 > ⚠️ **Field maps hang off process-mapping records.** If someone re-runs ADO process
 > discovery in Test, it creates **new** map configs/table maps and the update-set field maps
@@ -70,6 +73,7 @@ collisions → Commit.**
 | 4 | **ADO-SN Theme Parent Epic Sync** | Fix script | Theme → parent Epic (one Epic, many Themes). Dry → `LIMIT=100` → `LIMIT=0`. |
 | 5 | **ADO Theme Backfill** | Fix script | Feature Description → Theme. |
 | 6 | `defect2_theme_short_description_backfill.js` | Background script | Theme Short description from Name. |
+| 6a | **ADO-SN Theme Description HTML Cleanup** | Fix script | Converts raw ADO HTML in Theme Description to plain text, re-pulling the full text from ADO. Dry → commit. New imports/backfills are handled automatically by the BR + `ADOSNTextUtil`. |
 | 7 | **ADO-SN Sprint and Release Backfill** | Fix script | Dry (all) → `ONLY_PROJECT='OED - PRiSM'` → `ONLY_PROJECT=''`. Big run; safe to re-run if the browser times out. |
 | 8 | `defect5_story_state_backfill.js` | Background script | **Dry run only** — should be ~0 with the new state map. If not, check step 1's warning. |
 | 9 | **ADO-SN - Story Work Items Backfill (full, on demand)** | Scheduled job → **Execute Now** | Story Description, AC, Comments for ALL stories (no 5,000 cap; no browser timeout). Get OAuth Token first; watch System Logs for `[ADO-SN FULL BACKFILL]`. If errors climb after ~1 h, refresh the token and Execute Now again — it only picks up what's still missing. (`src/scheduled_jobs/ado_sn_story_work_items_backfill_full.js`) |
