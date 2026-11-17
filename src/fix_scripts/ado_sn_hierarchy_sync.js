@@ -14,6 +14,8 @@
 //   2) DRY_RUN=false, LIMIT=100, STAMP=true  -> write 100 records, eyeball them
 //   3) DRY_RUN=false, LIMIT=0,   STAMP=true  -> everything
 // Output: [HIER] lines (gs.info + gs.print).
+// Stories whose ADO parent is an Epic (older items with no Feature level) get Epic only;
+// counted as directEpic. themeMissing = parent Feature not synced to SN as a Theme.
 //
 // ServiceNow: Fix Script "ADO-SN Hierarchy Sync (Story to Theme and Epic)"
 // (meckncdev, update set MECK - AT - P59 ADO-SN REBUILD).
@@ -89,7 +91,7 @@
     }
     if (LIMIT) pending = pending.slice(0, LIMIT);
 
-    var c = { stories: 0, linked: 0, themeSet: 0, epicSet: 0, noFeature: 0, themeMissing: 0, epicMissing: 0 };
+    var c = { stories: 0, linked: 0, themeSet: 0, epicSet: 0, directEpic: 0, noFeature: 0, themeMissing: 0, epicMissing: 0 };
     for (var b = 0; b < pending.length; b += 200) {
         var slice = pending.slice(b, b + 200);
         var pmap = batchParents(slice.map(function (x) { return x.adoId; }));   // storyAdo -> featureAdo
@@ -97,6 +99,17 @@
             c.stories++;
             var fa = pmap[slice[s].adoId];
             if (!fa) { c.noFeature++; continue; }
+            // Legacy hierarchy: story parented directly to an Epic (no Feature level).
+            // Set Epic only; Theme stays blank (there is no Feature in ADO).
+            if (epicByAdo[fa]) {
+                c.directEpic++;
+                var deid = epicByAdo[fa];
+                if (DRY_RUN) { c.epicSet++; c.linked++; continue; }
+                var ds = new GlideRecord('rm_story');
+                if (!ds.get(slice[s].sysId)) continue;
+                if (ds.getValue('epic') !== deid) { ds.setValue('epic', deid); ds.setWorkflow(false); ds.update(); c.epicSet++; c.linked++; }
+                continue;
+            }
             var tid = themeByAdo[fa];
             var ea = featureEpic[fa];
             var eid = ea ? epicByAdo[ea] : null;
