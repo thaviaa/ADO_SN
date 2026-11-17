@@ -6,6 +6,7 @@ Order of operations to rebuild the ADO ↔ ServiceNow work in **mecknctest** aft
 **Rule of thumb:** config (update sets) → ADO connection → import → backfills.
 Data is **not** update-set tracked, so every backfill must be re-run in Test.
 Every script defaults to `DRY_RUN = true`: run it dry, read the counts, then set `false`.
+For long runs use **Proceed in Background** on the fix script (no browser timeout).
 
 ---
 
@@ -71,7 +72,7 @@ collisions → Commit.**
 | 6 | `defect2_theme_short_description_backfill.js` | Background script | Theme Short description from Name. |
 | 7 | **ADO-SN Sprint and Release Backfill** | Fix script | Dry (all) → `ONLY_PROJECT='OED - PRiSM'` → `ONLY_PROJECT=''`. Big run; safe to re-run if the browser times out. |
 | 8 | `defect5_story_state_backfill.js` | Background script | **Dry run only** — should be ~0 with the new state map. If not, check step 1's warning. |
-| 9 | **ADO Work Items Backfill** | Fix script | Story Description, AC, Comments. Biggest; re-run until 0 remaining. |
+| 9 | **ADO-SN - Story Work Items Backfill (full, on demand)** | Scheduled job → **Execute Now** | Story Description, AC, Comments for ALL stories (no 5,000 cap; no browser timeout). Get OAuth Token first; watch System Logs for `[ADO-SN FULL BACKFILL]`. If errors climb after ~1 h, refresh the token and Execute Now again — it only picks up what's still missing. (`src/scheduled_jobs/ado_sn_story_work_items_backfill_full.js`) |
 
 **Any time:** grant `scrum_product_owner` to the agile PMs (Betsy Kinney, Rakhee James,
 Shon Kelly, Anu Urhekar, Thomas Macfarlan) or the ITS Project Managers group — Defects 14/15/17.
