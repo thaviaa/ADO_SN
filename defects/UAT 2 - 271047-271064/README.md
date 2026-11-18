@@ -24,3 +24,16 @@ STRY0010395 AC), not on every save.
 - Create a personal backlog per ITPMO project **owned by that project's TPM** and shared with the project group, or
 - Reassign the existing `PRJ: ...` backlogs to the TPM, or
 - Test-script change: TPMs create their own backlog via *Agile Development > Personal Backlogs > New*.
+
+## 271051 / 271053 — fix (update set `MECK - AT - BUG 271053 - TPM PROJECT BACKLOGS`)
+Every ITPMO project already has a `PRJ: <project>` backlog, but most were **owned by someone
+other than the project's PM** (e.g. *PRJ: Cloud Landing Zone Remediation* owned by Jon Hardeman,
+PM = Betsy Kinney). Personal backlog ACLs: write = `scrum_product_owner` **and owner is me**;
+read = owner / Visible to / Visible to Groups.
+
+Fix script **BUG 271053 - TPM Project Backlogs** (`src/fix_scripts/bug271053_tpm_project_backlogs.js`):
+owner → project PM (previous owner kept in *Visible to*), *Visible to Groups* += project group
+(ADO import settings group, else the stories' most common group); creates the backlog if missing.
+Data — run per environment (dry run, then `DRY_RUN=false`).
+Dev dry run: 6 owners changed, 2 groups added, 0 created. Dev has import settings for ITS - ServiceNow
+only, so 5 projects found no group there; Test has import settings for all 7.
